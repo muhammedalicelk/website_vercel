@@ -257,7 +257,7 @@ const fileInputRef2 = useRef(null);
 const fileDialogOpenRef = useRef(false);
   const [showNotice, setShowNotice] = useState(false);
 
-   seEffect(() => {
+ useEffect(() => {
   if (!internetVideoId) {
     setYtDurationSec(null);
     setFormData((p) => ({ ...p, ytStartSec: '', ytEndSec: '' }));
