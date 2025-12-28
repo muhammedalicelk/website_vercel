@@ -1268,7 +1268,8 @@ function InternetMuzik({ youtubeLink, onChange, videoId, onDuration }) {
         createPlayer();
       };
     }
-
+   }); // ✅ BURASI ÖNEMLİ: YT.Player kapanışı
+    };
     return () => {
       destroyed = true;
       if (playerRef.current) {
