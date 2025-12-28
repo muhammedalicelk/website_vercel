@@ -1078,7 +1078,7 @@ function InternetMuzik({ youtubeLink, onChange, videoId, onDuration }) {
   return (
     <div>
       <p className="text-sm text-stone-700 mb-3">
-        YouTube linki gir (yapıştırınca otomatik önizleme çıkar):
+        YouTube linki giririniz.
       </p>
 
       <input
