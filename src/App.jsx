@@ -839,9 +839,8 @@ useEffect(() => {
         </div>
       )}
     </div>
-  );
-}
-{selected && (
+
+     {selected && (
   <div className="mt-4 bg-white border border-amber-200 rounded-xl p-4">
     <div className="text-sm font-semibold text-stone-800 mb-2">
       Oyuncakta Duyulacak (16 kHz • Mono)
@@ -865,6 +864,9 @@ useEffect(() => {
     )}
   </div>
 )}
+  );
+}
+
 
 /* =========================================================
    İNTERNETTEN MÜZİK (YouTube preview)
