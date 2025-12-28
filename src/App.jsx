@@ -880,32 +880,34 @@ function Input({ label, value, onChange, placeholder }) {
 }
 
 function YouTubeRangePicker({ ytDurationSec, formData, setFormData }) {
-  // Video süresi biliniyorsa: seçim üst sınırı video süresi
-  // bilinmiyorsa: en fazla 5:10 seçtirelim
-  const hardMax = Math.floor(
-    Math.min(
-      Number.isFinite(ytDurationSec) && ytDurationSec > 0 ? ytDurationSec : MAX_RANGE_SEC,
-      MAX_RANGE_SEC
-    )
+  // Video süresi varsa: üst sınır video süresi
+  // yoksa: geçici olarak 310 göster (duration gelince otomatik genişleyecek)
+  const videoMax = Math.floor(
+    (Number.isFinite(ytDurationSec) && ytDurationSec > 0) ? ytDurationSec : MAX_RANGE_SEC
   );
 
-  const start = clamp(Number(formData.ytStartSec || 0), 0, hardMax);
-  const endRaw = formData.ytEndSec === '' ? Math.min(start + MAX_RANGE_SEC, hardMax) : Number(formData.ytEndSec);
-  const end = clamp(endRaw, 0, hardMax);
+  // start: 0..videoMax-1 (end > start şartı için)
+  const start = clamp(Number(formData.ytStartSec || 0), 0, Math.max(0, videoMax - 1));
 
-  // 1) end >= start + 1 zorlayalım (en az 1 sn)
-  // 2) range <= 310 zorlayalım
-  const minEnd = clamp(start + 1, 1, hardMax);
-  const maxEnd = clamp(Math.min(start + MAX_RANGE_SEC, hardMax), 1, hardMax);
+  // end default: start+30sn (ama videoMax’i aşamaz)
+  const endDefault = clamp(start + 30, 1, videoMax);
+  const endInput = formData.ytEndSec === '' ? endDefault : Number(formData.ytEndSec);
+  const end = clamp(endInput, 0, videoMax);
+
+  // Kurallar:
+  // - end > start (min 1 sn)
+  // - (end - start) <= 310
+  // - end <= videoMax
+  const minEnd = clamp(start + 1, 1, videoMax);
+  const maxEnd = clamp(Math.min(start + MAX_RANGE_SEC, videoMax), 1, videoMax);
   const safeEnd = clamp(end, minEnd, maxEnd);
 
-  // Eğer state tutarsızsa otomatik düzelt (UI ile senkron)
+  // state tutarsızsa düzelt
   useEffect(() => {
-    const nextStart = start;
-    const nextEnd = safeEnd;
-
-    if (String(formData.ytStartSec) !== String(nextStart) || String(formData.ytEndSec) !== String(nextEnd)) {
-      setFormData((p) => ({ ...p, ytStartSec: String(nextStart), ytEndSec: String(nextEnd) }));
+    const ns = String(start);
+    const ne = String(safeEnd);
+    if (String(formData.ytStartSec) !== ns || String(formData.ytEndSec) !== ne) {
+      setFormData((p) => ({ ...p, ytStartSec: ns, ytEndSec: ne }));
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [start, safeEnd]);
@@ -913,35 +915,36 @@ function YouTubeRangePicker({ ytDurationSec, formData, setFormData }) {
   const startMS = toMS(start);
   const endMS = toMS(safeEnd);
 
-  // Dakika seçenekleri
-  const maxMinute = Math.floor(hardMax / 60);
-  const minuteOptions = Array.from({ length: maxMinute + 1 }, (_, i) => i);
+  // Start dakika seçenekleri: 0..floor((videoMax-1)/60)
+  const startMaxMinute = Math.floor(Math.max(0, videoMax - 1) / 60);
+  const startMinuteOptions = Array.from({ length: startMaxMinute + 1 }, (_, i) => i);
 
-  // Start için saniye seçenekleri (0..59 ama hardMax’i aşmayacak)
-  const startSecMax = startMS.m === maxMinute ? hardMax % 60 : 59;
-  const startSecondOptions = Array.from({ length: startSecMax + 1 }, (_, i) => i);
+  // Start saniye seçenekleri: son dakikadaysa (videoMax-1)%60’a kadar
+  const startLastSecMax =
+    startMS.m === startMaxMinute ? (Math.max(0, videoMax - 1) % 60) : 59;
+  const startSecondOptions = Array.from({ length: startLastSecMax + 1 }, (_, i) => i);
 
-  // End seçenekleri: minEnd..maxEnd aralığına göre dak/san seçeneklerini “kısıtlayacağız”
-  // Kullanıcı end’i seçerken zaten aralık dışını göremeyecek.
-  const endMinMS = toMS(minEnd);
-  const endMaxMS = toMS(maxEnd);
+  // End seçenekleri minEnd..maxEnd aralığında
+  const endMin = toMS(minEnd);
+  const endMax = toMS(maxEnd);
 
   const endMinuteOptions = Array.from(
-    { length: endMaxMS.m - endMinMS.m + 1 },
-    (_, k) => endMinMS.m + k
+    { length: endMax.m - endMin.m + 1 },
+    (_, k) => endMin.m + k
   );
 
   const endSecondOptions = (m) => {
-    const lo = m === endMinMS.m ? endMinMS.s : 0;
-    const hi = m === endMaxMS.m ? endMaxMS.s : 59;
+    const lo = (m === endMin.m) ? endMin.s : 0;
+    const hi = (m === endMax.m) ? endMax.s : 59;
     return Array.from({ length: hi - lo + 1 }, (_, i) => lo + i);
   };
 
   const setStartMS = (m, s) => {
-    const nextStart = clamp(fromMS(m, s), 0, hardMax);
-    // end’i de otomatik uygun aralığa çek
-    const nextMinEnd = clamp(nextStart + 1, 1, hardMax);
-    const nextMaxEnd = clamp(Math.min(nextStart + MAX_RANGE_SEC, hardMax), 1, hardMax);
+    const nextStart = clamp(fromMS(m, s), 0, Math.max(0, videoMax - 1));
+
+    // start değişince end’i otomatik uygun aralığa çek
+    const nextMinEnd = clamp(nextStart + 1, 1, videoMax);
+    const nextMaxEnd = clamp(Math.min(nextStart + MAX_RANGE_SEC, videoMax), 1, videoMax);
     const nextEnd = clamp(safeEnd, nextMinEnd, nextMaxEnd);
 
     setFormData((p) => ({
@@ -964,15 +967,20 @@ function YouTubeRangePicker({ ytDurationSec, formData, setFormData }) {
       </div>
 
       <p className="text-xs text-stone-600 mb-3">
-        Uzun videolarda oyuncakta çalınmasını istediğiniz aralığı seçin.
+        Videonun istediğiniz bölümünü seçin.
         <br />
         <b>Maksimum aralık: {fmtMS(MAX_RANGE_SEC)}</b>
-        {ytDurationSec ? (
+        {Number.isFinite(ytDurationSec) && ytDurationSec > 0 ? (
           <>
             <br />
             Video süresi: <b>{fmtMS(Math.floor(ytDurationSec))}</b>
           </>
-        ) : null}
+        ) : (
+          <>
+            <br />
+            Video süresi okunuyor... (gelince seçenekler genişler)
+          </>
+        )}
       </p>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -985,7 +993,7 @@ function YouTubeRangePicker({ ytDurationSec, formData, setFormData }) {
               value={startMS.m}
               onChange={(e) => setStartMS(Number(e.target.value), startMS.s)}
             >
-              {minuteOptions.map((m) => (
+              {startMinuteOptions.map((m) => (
                 <option key={m} value={m}>{m} dk</option>
               ))}
             </select>
@@ -1000,6 +1008,7 @@ function YouTubeRangePicker({ ytDurationSec, formData, setFormData }) {
               ))}
             </select>
           </div>
+
           <div className="mt-2 text-[11px] text-stone-500">
             Seçilen: <b>{fmtMS(start)}</b>
           </div>
@@ -1015,7 +1024,6 @@ function YouTubeRangePicker({ ytDurationSec, formData, setFormData }) {
               onChange={(e) => {
                 const m = Number(e.target.value);
                 const secs = endSecondOptions(m);
-                // dakika değişince saniye seçimi aralık dışına düşerse ilk geçerli saniyeye çek
                 const nextS = secs.includes(endMS.s) ? endMS.s : secs[0];
                 setEndMS(m, nextS);
               }}
@@ -1039,19 +1047,16 @@ function YouTubeRangePicker({ ytDurationSec, formData, setFormData }) {
           <div className="mt-2 text-[11px] text-stone-500">
             Seçilen: <b>{fmtMS(safeEnd)}</b> • Aralık: <b>{fmtMS(safeEnd - start)}</b>
           </div>
-
-          {(safeEnd - start) > MAX_RANGE_SEC ? (
-            <div className="mt-2 text-xs text-red-700">Aralık limiti aşıldı (sistem engeller).</div>
-          ) : null}
         </div>
       </div>
 
       <div className="mt-3 text-[11px] text-stone-500">
-        Not: Sistem, bitişi otomatik olarak <b>başlangıç+{fmtMS(MAX_RANGE_SEC)}</b> ve <b>video süresi</b> sınırları içinde tutar.
+        Sistem, bitişi otomatik olarak <b>başlangıç + {fmtMS(MAX_RANGE_SEC)}</b> sınırı içinde tutar.
       </div>
     </div>
   );
 }
+
 /* =========================================================
    HAZIR MÜZİK PICKER
    ========================================================= */
