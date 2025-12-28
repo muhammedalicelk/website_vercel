@@ -926,7 +926,7 @@ useEffect(() => {
 
   return (
   <div>
-    <p className="text-sm text-stone-700 mb-3">Listeden seç (istersen ara):</p>
+    <p className="text-sm text-stone-700 mb-3">Listeden seçiniz ya da arama yapınız.:</p>
 
     <input
       type="text"
