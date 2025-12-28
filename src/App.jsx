@@ -839,6 +839,7 @@ useEffect(() => {
       </div>
     )}
 
+
     {/* ✅ BU BLOK ARTIK ROOT DIV’İN İÇİNDE */}
     {selected && (
       <div className="mt-4 bg-white border border-amber-200 rounded-xl p-4">
@@ -866,7 +867,7 @@ useEffect(() => {
     )}
   </div>
 );
-
+}
 
 /* =========================================================
    İNTERNETTEN MÜZİK (YouTube preview)
