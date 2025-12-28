@@ -680,172 +680,143 @@ if (activeTab === 'internet') {
                 </TabButton>
               </div>
 
-              <div className="bg-amber-50/30 rounded-xl p-6 border border-amber-100">
-                {activeTab === 'hazir' && <HazirMuzikPicker formData={formData} setFormData={setFormData} onToyPreviewCheck={setHazirToyOk}/>}
-
-                {activeTab === 'yukle' && (
-                  <div>
-                    <p className="text-sm text-stone-700 mb-4">Dosya yükle (MP3 / WAV)</p>
-
-                    <div className="border-2 border-dashed border-amber-200 rounded-xl p-8 text-center hover:border-amber-500 transition mb-4 bg-white">
-                      <Upload className="w-12 h-12 mx-auto text-amber-700 mb-3" />
-                      <label className="cursor-pointer">
-                        <span className="text-amber-800 font-medium hover:text-amber-900">Dosya Seç (Birden fazla seçilebilir)</span>
-                      <input
-  ref={fileInputRef}
-  type="file"
-  accept={AUDIO_ACCEPT}
-  multiple
-  onClick={() => {
-    // 👇 İŞTE ADIM 2 BU
-    fileDialogOpenRef.current = true;
-  }}
-  onChange={handleFileUpload}
-  className="hidden"
-/>
-                      </label>
-                    </div>
-
-                    {formData.yukluDosyalar.length > 0 && (
-                      <div className="space-y-4">
-                        <p className="text-sm font-medium text-stone-700">Yüklenen Dosyalar:</p>
-                        {formData.yukluDosyalar.map((dosya) => (
-                          <DosyaTrimmer key={dosya.id} dosya={dosya} onRemove={removeDosya} onUpdate={updateDosya} />
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                )}
-{activeTab === 'internet' && internetVideoId && (
-  <div className="mt-3 text-xs text-stone-700">
-    {ytDurationSec
-      ? <>Video süresi: <b>{Math.floor(ytDurationSec / 60)}:{String(Math.floor(ytDurationSec % 60)).padStart(2,'0')}</b></>
-      : <>Video süresi okunuyor...</>
-    }
-  </div>
-)}
-
-{activeTab === 'internet' && internetVideoId && ytDurationSec && ytDurationSec > 310 && (
-  <div className="mt-3 bg-red-50 border border-red-200 rounded-lg p-3 text-xs text-red-700">
-    Bu video <b>310 sn’den uzundur.</b> Lütfen aşağıdan süre aralığı belirtiniz.
-  </div>
-)}
-{activeTab === 'internet' && (
-  <>
-<InternetMuzik
-  youtubeLink={formData.youtubeLink}
-  onChange={(v) => setFormData({ ...formData, youtubeLink: v })}
-  videoId={internetVideoId}
-  onDuration={(sec) => setYtDurationSec(sec)}
-/>
-
-    {/* YouTube için dosya yükleme */}
-    <div className="mt-4 bg-amber-50 border border-amber-200 rounded-xl p-4">
-      <div className="text-sm font-semibold text-stone-800 mb-2">
-        Oyuncakta Duyulacak (16 kHz) (Opsiyonel)
-      </div>
-
-      <p className="text-xs text-stone-600 mb-3">
-        YouTube üzerinden ses dönüştürülmez. Oyuncakta duyulacak 16 kHz ses için
-        lütfen aynı müziğin dosyasını yükleyiniz. (MP3 / WAV).
-      </p>
-
-      <label className="inline-flex items-center gap-2 cursor-pointer text-amber-800 font-medium">
-        <Upload className="w-4 h-4" />
-        Dosya Yükle
-        <input
-  ref={fileInputRef2}
-  type="file"
-  accept={AUDIO_ACCEPT}
-  onClick={() => {
-    fileDialogOpenRef.current = true;
-  }}
-  onChange={handleFileUpload}
-  className="hidden"
-/>
-      </label>
-    </div>
-
-    {/* 👇 BURAYA KOY */}
-    {formData.yukluDosyalar.length > 0 && (
-      <div className="mt-4 space-y-4">
-        <div className="text-sm font-medium text-stone-700">
-          Yüklediğin dosya(lar) – burada kırpabilirsin:
-        </div>
-
-        {formData.yukluDosyalar.map((dosya) => (
-          <DosyaTrimmer
-            key={dosya.id}
-            dosya={dosya}
-            onRemove={removeDosya}
-            onUpdate={updateDosya}
-          />
-        ))}
-      </div>
-    )}
-  
-   {/* ⏱️ Süre Belirtme (Opsiyonel) */}
-{activeTab === 'internet' && (
-  <>
-    <InternetMuzik
-      youtubeLink={formData.youtubeLink}
-      onChange={(v) => setFormData({ ...formData, youtubeLink: v })}
-      videoId={internetVideoId}
-      onDuration={(sec) => setYtDurationSec(sec)}
-    />
-
-    {/* YouTube için dosya yükleme */}
-    <div className="mt-4 bg-amber-50 border border-amber-200 rounded-xl p-4">
-      <div className="text-sm font-semibold text-stone-800 mb-2">
-        Oyuncakta Duyulacak (16 kHz)
-      </div>
-
-      <p className="text-xs text-stone-600 mb-3">
-        YouTube’dan ses dönüştürülmez. Oyuncakta duyulacak 16 kHz önizleme için
-        lütfen aynı müziğin dosyasını yükleyin (MP3 / WAV / M4A vb.).
-      </p>
-
-      <label className="inline-flex items-center gap-2 cursor-pointer text-amber-800 font-medium">
-        <Upload className="w-4 h-4" />
-        Dosya Yükle
-        <input
-          ref={fileInputRef2}
-          type="file"
-          accept={AUDIO_ACCEPT}
-          onPointerDown={() => { fileDialogOpenRef.current = true; }}
-          onChange={handleFileUpload}
-          className="hidden"
-        />
-      </label>
-    </div>
-
-    {/* Yüklenen dosyalar – kırpma */}
-    {formData.yukluDosyalar.length > 0 && (
-      <div className="mt-4 space-y-4">
-        <div className="text-sm font-medium text-stone-700">
-          Yüklediğin dosya(lar) – burada kırpabilirsin:
-        </div>
-
-        {formData.yukluDosyalar.map((dosya) => (
-          <DosyaTrimmer
-            key={dosya.id}
-            dosya={dosya}
-            onRemove={removeDosya}
-            onUpdate={updateDosya}
-          />
-        ))}
-      </div>
-    )}
-
-    {/* ✅ Dakika:Saniye seçmeli aralık */}
-    <YouTubeRangePicker
-      ytDurationSec={ytDurationSec}
+<div className="bg-amber-50/30 rounded-xl p-6 border border-amber-100">
+  {/* HAZIR */}
+  {activeTab === 'hazir' && (
+    <HazirMuzikPicker
       formData={formData}
       setFormData={setFormData}
+      onToyPreviewCheck={setHazirToyOk}
     />
-  </>
-)}
+  )}
 
+  {/* DOSYA */}
+  {activeTab === 'yukle' && (
+    <div>
+      <p className="text-sm text-stone-700 mb-4">Dosya yükle (MP3 / WAV / M4A vb.)</p>
+
+      <div className="border-2 border-dashed border-amber-200 rounded-xl p-8 text-center hover:border-amber-500 transition mb-4 bg-white">
+        <Upload className="w-12 h-12 mx-auto text-amber-700 mb-3" />
+        <label className="cursor-pointer">
+          <span className="text-amber-800 font-medium hover:text-amber-900">
+            Dosya Seç (Birden fazla seçilebilir)
+          </span>
+
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept={AUDIO_ACCEPT}
+            multiple
+            onPointerDown={() => {
+              fileDialogOpenRef.current = true;
+            }}
+            onChange={handleFileUpload}
+            className="hidden"
+          />
+        </label>
+      </div>
+
+      {formData.yukluDosyalar.length > 0 && (
+        <div className="space-y-4">
+          <p className="text-sm font-medium text-stone-700">Yüklenen Dosyalar:</p>
+          {formData.yukluDosyalar.map((dosya) => (
+            <DosyaTrimmer
+              key={dosya.id}
+              dosya={dosya}
+              onRemove={removeDosya}
+              onUpdate={updateDosya}
+            />
+          ))}
+        </div>
+      )}
+    </div>
+  )}
+
+  {/* INTERNET */}
+  {activeTab === 'internet' && (
+    <>
+      <InternetMuzik
+        youtubeLink={formData.youtubeLink}
+        onChange={(v) => setFormData({ ...formData, youtubeLink: v })}
+        videoId={internetVideoId}
+        onDuration={(sec) => setYtDurationSec(sec)}
+      />
+
+      {/* Video süresi bilgisi */}
+      {internetVideoId && (
+        <div className="mt-3 text-xs text-stone-700">
+          {ytDurationSec ? (
+            <>
+              Video süresi: <b>{Math.floor(ytDurationSec / 60)}:{String(Math.floor(ytDurationSec % 60)).padStart(2, '0')}</b>
+            </>
+          ) : (
+            <>Video süresi okunuyor...</>
+          )}
+        </div>
+      )}
+
+      {/* 310 sn uyarısı (sadece internet + geçerli videoId) */}
+      {internetVideoId && ytDurationSec && ytDurationSec > 310 && (
+        <div className="mt-3 bg-red-50 border border-red-200 rounded-lg p-3 text-xs text-red-700">
+          Bu video <b>310 sn’den uzun</b>. Lütfen ya dosya yükleyin ya da aşağıdan süre aralığı seçin.
+        </div>
+      )}
+
+      {/* YouTube için dosya yükleme */}
+      <div className="mt-4 bg-amber-50 border border-amber-200 rounded-xl p-4">
+        <div className="text-sm font-semibold text-stone-800 mb-2">
+          Oyuncakta Duyulacak (16 kHz)
+        </div>
+
+        <p className="text-xs text-stone-600 mb-3">
+          YouTube’dan ses dönüştürülmez. Oyuncakta duyulacak 16 kHz önizleme için
+          lütfen aynı müziğin dosyasını yükleyin (MP3 / WAV / M4A vb.).
+        </p>
+
+        <label className="inline-flex items-center gap-2 cursor-pointer text-amber-800 font-medium">
+          <Upload className="w-4 h-4" />
+          Dosya Yükle
+
+          <input
+            ref={fileInputRef2}
+            type="file"
+            accept={AUDIO_ACCEPT}
+            onPointerDown={() => {
+              fileDialogOpenRef.current = true;
+            }}
+            onChange={handleFileUpload}
+            className="hidden"
+          />
+        </label>
+      </div>
+
+      {/* Yüklenen dosyalar – kırpma */}
+      {formData.yukluDosyalar.length > 0 && (
+        <div className="mt-4 space-y-4">
+          <div className="text-sm font-medium text-stone-700">
+            Yüklediğin dosya(lar) – burada kırpabilirsin:
+          </div>
+
+          {formData.yukluDosyalar.map((dosya) => (
+            <DosyaTrimmer
+              key={dosya.id}
+              dosya={dosya}
+              onRemove={removeDosya}
+              onUpdate={updateDosya}
+            />
+          ))}
+        </div>
+      )}
+
+      {/* Dakika:saniye seçmeli aralık */}
+      <YouTubeRangePicker
+        ytDurationSec={ytDurationSec}
+        formData={formData}
+        setFormData={setFormData}
+      />
+    </>
+  )}
+</div>
               </div>
             </div>
 
