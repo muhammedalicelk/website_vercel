@@ -677,12 +677,12 @@ if (activeTab === 'internet') {
     {/* YouTube için dosya yükleme */}
     <div className="mt-4 bg-amber-50 border border-amber-200 rounded-xl p-4">
       <div className="text-sm font-semibold text-stone-800 mb-2">
-        Oyuncakta Duyulacak (16 kHz)
+        Oyuncakta Duyulacak (16 kHz) (Opsiyonel)
       </div>
 
       <p className="text-xs text-stone-600 mb-3">
-        YouTube’dan ses dönüştürülmez. Oyuncakta duyulacak 16 kHz önizleme için
-        lütfen aynı müziğin dosyasını yükleyin (MP3 / WAV).
+        YouTube üzerinden ses dönüştürülmez. Oyuncakta duyulacak 16 kHz ses için
+        lütfen aynı müziğin dosyasını yükleyiniz. (MP3 / WAV).
       </p>
 
       <label className="inline-flex items-center gap-2 cursor-pointer text-amber-800 font-medium">
