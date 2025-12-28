@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { Music, Upload, Globe, User, Play, Pause, X, AlertCircle } from 'lucide-react';
-
+const AUDIO_ACCEPT = 'audio/*';
 /* =========================================================
    YT + SONGS
    ========================================================= */
@@ -236,26 +236,36 @@ const [formData, setFormData] = useState({
 const fileInputRef2 = useRef(null);
 const fileDialogOpenRef = useRef(false);
   const [showNotice, setShowNotice] = useState(false);
-   useEffect(() => {
-  const onFocus = () => {
-    // Dosya penceresi açılmıştı ve geri dönüldü (iptal veya seçti)
+  useEffect(() => {
+  const cleanupAfterFileDialog = () => {
     if (!fileDialogOpenRef.current) return;
     fileDialogOpenRef.current = false;
 
-    // kısa gecikme bazı tarayıcılarda daha stabil
     setTimeout(() => {
       fileInputRef.current?.blur?.();
       fileInputRef2.current?.blur?.();
-      // ekstra garanti: aktif element body değilse blur
       if (document.activeElement && document.activeElement !== document.body) {
         document.activeElement.blur?.();
       }
     }, 0);
   };
 
+  const onFocus = () => cleanupAfterFileDialog();
+
+  const onVisibility = () => {
+    // sayfa yeniden görünür olunca (file dialog kapanınca) tetiklenir
+    if (document.visibilityState === 'visible') cleanupAfterFileDialog();
+  };
+
   window.addEventListener('focus', onFocus);
-  return () => window.removeEventListener('focus', onFocus);
+  document.addEventListener('visibilitychange', onVisibility);
+
+  return () => {
+    window.removeEventListener('focus', onFocus);
+    document.removeEventListener('visibilitychange', onVisibility);
+  };
 }, []);
+
 useEffect(() => {
   if (window.YT && window.YT.Player) return;
 
