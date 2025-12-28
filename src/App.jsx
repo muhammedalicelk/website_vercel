@@ -257,7 +257,16 @@ const [formData, setFormData] = useState({
 });
 
   const [showNotice, setShowNotice] = useState(false);
-
+ const internetVideoId = useMemo(
+    () => extractYouTubeId(formData.youtubeLink),
+    [formData.youtubeLink]
+  );
+   useEffect(() => {
+  // Link silindiyse / geçersizse, eski video süresi ekranda kalmasın
+  if (!internetVideoId) {
+    setYtDurationSec(null);
+  }
+}, [internetVideoId]);
  useEffect(() => {
   if (!internetVideoId) {
     setYtDurationSec(null);
@@ -337,16 +346,7 @@ useEffect(() => {
   setShowNotice(true);
 }, []);
 
-  const internetVideoId = useMemo(
-    () => extractYouTubeId(formData.youtubeLink),
-    [formData.youtubeLink]
-  );
-   useEffect(() => {
-  // Link silindiyse / geçersizse, eski video süresi ekranda kalmasın
-  if (!internetVideoId) {
-    setYtDurationSec(null);
-  }
-}, [internetVideoId]);
+ 
  const submitDisabled = useMemo(() => {
     // temel zorunlular
     if (!formData.musteriAdi.trim()) return true;
