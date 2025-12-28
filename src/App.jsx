@@ -231,6 +231,60 @@ const [formData, setFormData] = useState({
   ytStartSec: '',
   ytEndSec: '',
 });
+  const submitDisabled = useMemo(() => {
+    // temel zorunlular
+    if (!formData.musteriAdi.trim()) return true;
+    if (!formData.telefon.trim()) return true;
+
+    // tab bazlı zorunlular
+    if (activeTab === 'hazir') {
+      if (!formData.hazirMuzikId) return true;
+      // 16k preview yoksa veya hala kontrol ediliyorsa disable
+      if (hazirToyOk !== true) return true;
+    }
+
+    if (activeTab === 'yukle') {
+      if (!formData.yukluDosyalar || formData.yukluDosyalar.length === 0) return true;
+      // en az 1 dosya metadata hazır olmalı (isteğe bağlı)
+      const anyReady = formData.yukluDosyalar.some((f) => f?.isReady);
+      if (!anyReady) return true;
+      // süre limitini aşan var mı (isteğe bağlı)
+      const anyTooLong = formData.yukluDosyalar.some((f) => (f.trimEnd - f.trimStart) > 310);
+      if (anyTooLong) return true;
+    }
+
+    if (activeTab === 'internet') {
+      // youtube linki geçerli mi
+      if (!internetVideoId) return true;
+
+      // video uzun ve kullanıcı ne dosya yüklemiş ne aralık girmişse disable
+      const hasUpload = (formData.yukluDosyalar || []).length > 0;
+      const hasManualRange = formData.ytStartSec !== '' && formData.ytEndSec !== '';
+
+      if (ytDurationSec && ytDurationSec > 310 && !hasUpload && !hasManualRange) return true;
+
+      if (hasManualRange) {
+        const start = Number(formData.ytStartSec);
+        const end = Number(formData.ytEndSec);
+        if (!Number.isFinite(start) || !Number.isFinite(end) || end <= start) return true;
+        if (end - start > 310) return true;
+        if (ytDurationSec && end > ytDurationSec) return true;
+      }
+    }
+
+    return false;
+  }, [
+    formData.musteriAdi,
+    formData.telefon,
+    formData.hazirMuzikId,
+    formData.yukluDosyalar,
+    formData.ytStartSec,
+    formData.ytEndSec,
+    activeTab,
+    hazirToyOk,
+    internetVideoId,
+    ytDurationSec,
+  ]);
 
   const [showNotice, setShowNotice] = useState(false);
 useEffect(() => {
