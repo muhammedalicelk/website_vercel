@@ -232,7 +232,30 @@ const [formData, setFormData] = useState({
   ytStartSec: '',
   ytEndSec: '',
 });
+   const fileInputRef = useRef(null);
+const fileInputRef2 = useRef(null);
+const fileDialogOpenRef = useRef(false);
   const [showNotice, setShowNotice] = useState(false);
+   useEffect(() => {
+  const onFocus = () => {
+    // Dosya penceresi açılmıştı ve geri dönüldü (iptal veya seçti)
+    if (!fileDialogOpenRef.current) return;
+    fileDialogOpenRef.current = false;
+
+    // kısa gecikme bazı tarayıcılarda daha stabil
+    setTimeout(() => {
+      fileInputRef.current?.blur?.();
+      fileInputRef2.current?.blur?.();
+      // ekstra garanti: aktif element body değilse blur
+      if (document.activeElement && document.activeElement !== document.body) {
+        document.activeElement.blur?.();
+      }
+    }, 0);
+  };
+
+  window.addEventListener('focus', onFocus);
+  return () => window.removeEventListener('focus', onFocus);
+}, []);
 useEffect(() => {
   if (window.YT && window.YT.Player) return;
 
@@ -387,6 +410,7 @@ for (const nf of newFiles) {
   }
 }
     e.target.value = '';
+     e.target.blur?.();
   };
 
   const removeDosya = (id) => {
@@ -637,7 +661,18 @@ if (activeTab === 'internet') {
                       <Upload className="w-12 h-12 mx-auto text-amber-700 mb-3" />
                       <label className="cursor-pointer">
                         <span className="text-amber-800 font-medium hover:text-amber-900">Dosya Seç (Birden fazla seçilebilir)</span>
-                        <input type="file" accept="audio/*" multiple onChange={handleFileUpload} className="hidden" />
+                      <input
+  ref={fileInputRef}
+  type="file"
+  accept={AUDIO_ACCEPT}
+  multiple
+  onClick={() => {
+    // 👇 İŞTE ADIM 2 BU
+    fileDialogOpenRef.current = true;
+  }}
+  onChange={handleFileUpload}
+  className="hidden"
+/>
                       </label>
                     </div>
 
@@ -689,11 +724,15 @@ if (activeTab === 'internet') {
         <Upload className="w-4 h-4" />
         Dosya Yükle
         <input
-          type="file"
-          accept="audio/*"
-          onChange={handleFileUpload}
-          className="hidden"
-        />
+  ref={fileInputRef2}
+  type="file"
+  accept={AUDIO_ACCEPT}
+  onClick={() => {
+    fileDialogOpenRef.current = true;
+  }}
+  onChange={handleFileUpload}
+  className="hidden"
+/>
       </label>
     </div>
 
