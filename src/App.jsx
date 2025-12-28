@@ -238,6 +238,9 @@ Amaç kullanıcı geri bildirimi ve ürün geliştirmedir. Fatura düzenlenmemek
 Katılım bedeli ve kargo daha sonraki aşamada paylaşılacaktır.`;
 
 export default function SesliOyuncakSiparis() {
+   const fileDialogOpenRef = useRef(false);
+const fileInputRef = useRef(null);
+const fileInputRef2 = useRef(null);
    const [hazirToyOk, setHazirToyOk] = useState(null); 
   const [activeTab, setActiveTab] = useState('hazir');
  const [ytDurationSec, setYtDurationSec] = useState(null);
@@ -252,9 +255,7 @@ const [formData, setFormData] = useState({
   ytStartSec: '',
   ytEndSec: '',
 });
-   const fileInputRef = useRef(null);
-const fileInputRef2 = useRef(null);
-const fileDialogOpenRef = useRef(false);
+
   const [showNotice, setShowNotice] = useState(false);
 
  useEffect(() => {
