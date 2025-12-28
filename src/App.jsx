@@ -64,7 +64,27 @@ function makeId() {
   if (typeof crypto !== 'undefined' && crypto.randomUUID) return crypto.randomUUID();
   return `id_${Date.now()}_${Math.random().toString(16).slice(2)}`;
 }
+const MAX_RANGE_SEC = 310; // 5dk 10sn
 
+function clamp(n, min, max) {
+  return Math.max(min, Math.min(max, n));
+}
+
+function toMS(totalSec) {
+  const s = Math.max(0, Number(totalSec) || 0);
+  const m = Math.floor(s / 60);
+  const r = s % 60;
+  return { m, s: r };
+}
+
+function fromMS(m, s) {
+  return (Number(m) || 0) * 60 + (Number(s) || 0);
+}
+
+function fmtMS(totalSec) {
+  const { m, s } = toMS(totalSec);
+  return `${m}:${String(s).padStart(2, '0')}`;
+}
 function extractYouTubeId(input) {
   if (!input) return '';
   const raw = input.trim();
@@ -765,43 +785,65 @@ if (activeTab === 'internet') {
     )}
   
    {/* ⏱️ Süre Belirtme (Opsiyonel) */}
-<div className="mt-4 bg-white border border-amber-200 rounded-xl p-4">
-  <div className="text-sm font-semibold text-stone-800 mb-2">
-    Süre Belirt (Opsiyonel)
-  </div>
-
-  <p className="text-xs text-stone-600 mb-3">
-    Eğer şarkı uzunsa ve dosya yüklemek istemiyorsanız,
-    oyuncakta çalınmasını istediğiniz aralığı saniye cinsinden belirtin.
-    <br />
-    <b>Maksimum süre: 310 saniye</b>
-  </p>
-
-  <div className="flex gap-3">
-    <input
-      type="number"
-      min="0"
-      placeholder="Başlangıç (sn)"
-      value={formData.ytStartSec}
-      onChange={(e) =>
-        setFormData({ ...formData, ytStartSec: e.target.value })
-      }
-      className="w-1/2 px-3 py-2 border border-amber-200 rounded-lg text-sm"
+{activeTab === 'internet' && (
+  <>
+    <InternetMuzik
+      youtubeLink={formData.youtubeLink}
+      onChange={(v) => setFormData({ ...formData, youtubeLink: v })}
+      videoId={internetVideoId}
+      onDuration={(sec) => setYtDurationSec(sec)}
     />
 
-    <input
-      type="number"
-      min="0"
-      placeholder="Bitiş (sn)"
-      value={formData.ytEndSec}
-      onChange={(e) =>
-        setFormData({ ...formData, ytEndSec: e.target.value })
-      }
-      className="w-1/2 px-3 py-2 border border-amber-200 rounded-lg text-sm"
+    {/* YouTube için dosya yükleme */}
+    <div className="mt-4 bg-amber-50 border border-amber-200 rounded-xl p-4">
+      <div className="text-sm font-semibold text-stone-800 mb-2">
+        Oyuncakta Duyulacak (16 kHz)
+      </div>
+
+      <p className="text-xs text-stone-600 mb-3">
+        YouTube’dan ses dönüştürülmez. Oyuncakta duyulacak 16 kHz önizleme için
+        lütfen aynı müziğin dosyasını yükleyin (MP3 / WAV / M4A vb.).
+      </p>
+
+      <label className="inline-flex items-center gap-2 cursor-pointer text-amber-800 font-medium">
+        <Upload className="w-4 h-4" />
+        Dosya Yükle
+        <input
+          ref={fileInputRef2}
+          type="file"
+          accept={AUDIO_ACCEPT}
+          onPointerDown={() => { fileDialogOpenRef.current = true; }}
+          onChange={handleFileUpload}
+          className="hidden"
+        />
+      </label>
+    </div>
+
+    {/* Yüklenen dosyalar – kırpma */}
+    {formData.yukluDosyalar.length > 0 && (
+      <div className="mt-4 space-y-4">
+        <div className="text-sm font-medium text-stone-700">
+          Yüklediğin dosya(lar) – burada kırpabilirsin:
+        </div>
+
+        {formData.yukluDosyalar.map((dosya) => (
+          <DosyaTrimmer
+            key={dosya.id}
+            dosya={dosya}
+            onRemove={removeDosya}
+            onUpdate={updateDosya}
+          />
+        ))}
+      </div>
+    )}
+
+    {/* ✅ Dakika:Saniye seçmeli aralık */}
+    <YouTubeRangePicker
+      ytDurationSec={ytDurationSec}
+      formData={formData}
+      setFormData={setFormData}
     />
-  </div>
-</div>
-</>
+  </>
 )}
 
               </div>
@@ -867,7 +909,179 @@ function Input({ label, value, onChange, placeholder }) {
   );
 }
 
+function YouTubeRangePicker({ ytDurationSec, formData, setFormData }) {
+  // Video süresi biliniyorsa: seçim üst sınırı video süresi
+  // bilinmiyorsa: en fazla 5:10 seçtirelim
+  const hardMax = Math.floor(
+    Math.min(
+      Number.isFinite(ytDurationSec) && ytDurationSec > 0 ? ytDurationSec : MAX_RANGE_SEC,
+      MAX_RANGE_SEC
+    )
+  );
 
+  const start = clamp(Number(formData.ytStartSec || 0), 0, hardMax);
+  const endRaw = formData.ytEndSec === '' ? Math.min(start + MAX_RANGE_SEC, hardMax) : Number(formData.ytEndSec);
+  const end = clamp(endRaw, 0, hardMax);
+
+  // 1) end >= start + 1 zorlayalım (en az 1 sn)
+  // 2) range <= 310 zorlayalım
+  const minEnd = clamp(start + 1, 1, hardMax);
+  const maxEnd = clamp(Math.min(start + MAX_RANGE_SEC, hardMax), 1, hardMax);
+  const safeEnd = clamp(end, minEnd, maxEnd);
+
+  // Eğer state tutarsızsa otomatik düzelt (UI ile senkron)
+  useEffect(() => {
+    const nextStart = start;
+    const nextEnd = safeEnd;
+
+    if (String(formData.ytStartSec) !== String(nextStart) || String(formData.ytEndSec) !== String(nextEnd)) {
+      setFormData((p) => ({ ...p, ytStartSec: String(nextStart), ytEndSec: String(nextEnd) }));
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [start, safeEnd]);
+
+  const startMS = toMS(start);
+  const endMS = toMS(safeEnd);
+
+  // Dakika seçenekleri
+  const maxMinute = Math.floor(hardMax / 60);
+  const minuteOptions = Array.from({ length: maxMinute + 1 }, (_, i) => i);
+
+  // Start için saniye seçenekleri (0..59 ama hardMax’i aşmayacak)
+  const startSecMax = startMS.m === maxMinute ? hardMax % 60 : 59;
+  const startSecondOptions = Array.from({ length: startSecMax + 1 }, (_, i) => i);
+
+  // End seçenekleri: minEnd..maxEnd aralığına göre dak/san seçeneklerini “kısıtlayacağız”
+  // Kullanıcı end’i seçerken zaten aralık dışını göremeyecek.
+  const endMinMS = toMS(minEnd);
+  const endMaxMS = toMS(maxEnd);
+
+  const endMinuteOptions = Array.from(
+    { length: endMaxMS.m - endMinMS.m + 1 },
+    (_, k) => endMinMS.m + k
+  );
+
+  const endSecondOptions = (m) => {
+    const lo = m === endMinMS.m ? endMinMS.s : 0;
+    const hi = m === endMaxMS.m ? endMaxMS.s : 59;
+    return Array.from({ length: hi - lo + 1 }, (_, i) => lo + i);
+  };
+
+  const setStartMS = (m, s) => {
+    const nextStart = clamp(fromMS(m, s), 0, hardMax);
+    // end’i de otomatik uygun aralığa çek
+    const nextMinEnd = clamp(nextStart + 1, 1, hardMax);
+    const nextMaxEnd = clamp(Math.min(nextStart + MAX_RANGE_SEC, hardMax), 1, hardMax);
+    const nextEnd = clamp(safeEnd, nextMinEnd, nextMaxEnd);
+
+    setFormData((p) => ({
+      ...p,
+      ytStartSec: String(nextStart),
+      ytEndSec: String(nextEnd),
+    }));
+  };
+
+  const setEndMS = (m, s) => {
+    const nextEndRaw = fromMS(m, s);
+    const nextEnd = clamp(nextEndRaw, minEnd, maxEnd);
+    setFormData((p) => ({ ...p, ytEndSec: String(nextEnd) }));
+  };
+
+  return (
+    <div className="mt-4 bg-white border border-amber-200 rounded-xl p-4">
+      <div className="text-sm font-semibold text-stone-800 mb-2">
+        Süre Belirt (Opsiyonel)
+      </div>
+
+      <p className="text-xs text-stone-600 mb-3">
+        Uzun videolarda oyuncakta çalınmasını istediğiniz aralığı seçin.
+        <br />
+        <b>Maksimum aralık: {fmtMS(MAX_RANGE_SEC)}</b>
+        {ytDurationSec ? (
+          <>
+            <br />
+            Video süresi: <b>{fmtMS(Math.floor(ytDurationSec))}</b>
+          </>
+        ) : null}
+      </p>
+
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        {/* START */}
+        <div className="bg-amber-50/40 border border-amber-200 rounded-lg p-3">
+          <div className="text-xs font-semibold text-stone-700 mb-2">Başlangıç</div>
+          <div className="flex gap-2">
+            <select
+              className="w-1/2 px-3 py-2 border border-amber-200 rounded-lg text-sm bg-white"
+              value={startMS.m}
+              onChange={(e) => setStartMS(Number(e.target.value), startMS.s)}
+            >
+              {minuteOptions.map((m) => (
+                <option key={m} value={m}>{m} dk</option>
+              ))}
+            </select>
+
+            <select
+              className="w-1/2 px-3 py-2 border border-amber-200 rounded-lg text-sm bg-white"
+              value={startMS.s}
+              onChange={(e) => setStartMS(startMS.m, Number(e.target.value))}
+            >
+              {startSecondOptions.map((s) => (
+                <option key={s} value={s}>{String(s).padStart(2, '0')} sn</option>
+              ))}
+            </select>
+          </div>
+          <div className="mt-2 text-[11px] text-stone-500">
+            Seçilen: <b>{fmtMS(start)}</b>
+          </div>
+        </div>
+
+        {/* END */}
+        <div className="bg-amber-50/40 border border-amber-200 rounded-lg p-3">
+          <div className="text-xs font-semibold text-stone-700 mb-2">Bitiş</div>
+          <div className="flex gap-2">
+            <select
+              className="w-1/2 px-3 py-2 border border-amber-200 rounded-lg text-sm bg-white"
+              value={endMS.m}
+              onChange={(e) => {
+                const m = Number(e.target.value);
+                const secs = endSecondOptions(m);
+                // dakika değişince saniye seçimi aralık dışına düşerse ilk geçerli saniyeye çek
+                const nextS = secs.includes(endMS.s) ? endMS.s : secs[0];
+                setEndMS(m, nextS);
+              }}
+            >
+              {endMinuteOptions.map((m) => (
+                <option key={m} value={m}>{m} dk</option>
+              ))}
+            </select>
+
+            <select
+              className="w-1/2 px-3 py-2 border border-amber-200 rounded-lg text-sm bg-white"
+              value={endMS.s}
+              onChange={(e) => setEndMS(endMS.m, Number(e.target.value))}
+            >
+              {endSecondOptions(endMS.m).map((s) => (
+                <option key={s} value={s}>{String(s).padStart(2, '0')} sn</option>
+              ))}
+            </select>
+          </div>
+
+          <div className="mt-2 text-[11px] text-stone-500">
+            Seçilen: <b>{fmtMS(safeEnd)}</b> • Aralık: <b>{fmtMS(safeEnd - start)}</b>
+          </div>
+
+          {(safeEnd - start) > MAX_RANGE_SEC ? (
+            <div className="mt-2 text-xs text-red-700">Aralık limiti aşıldı (sistem engeller).</div>
+          ) : null}
+        </div>
+      </div>
+
+      <div className="mt-3 text-[11px] text-stone-500">
+        Not: Sistem, bitişi otomatik olarak <b>başlangıç+{fmtMS(MAX_RANGE_SEC)}</b> ve <b>video süresi</b> sınırları içinde tutar.
+      </div>
+    </div>
+  );
+}
 /* =========================================================
    HAZIR MÜZİK PICKER
    ========================================================= */
