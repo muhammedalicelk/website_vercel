@@ -790,82 +790,82 @@ useEffect(() => {
 }, [selected?.id]);
 
   return (
-    <div>
-      <p className="text-sm text-stone-700 mb-3">Listeden seç (istersen ara):</p>
+  <div>
+    <p className="text-sm text-stone-700 mb-3">Listeden seç (istersen ara):</p>
 
-      <input
-        type="text"
-        value={query}
-        onChange={(e) => setQuery(e.target.value)}
-        className="w-full px-4 py-3 border-2 border-amber-200 rounded-xl focus:border-amber-600 focus:outline-none transition mb-3 bg-white"
-        placeholder="Ara: Şarkı İsmi / Tür / Dil"
-      />
+    <input
+      type="text"
+      value={query}
+      onChange={(e) => setQuery(e.target.value)}
+      className="w-full px-4 py-3 border-2 border-amber-200 rounded-xl focus:border-amber-600 focus:outline-none transition mb-3 bg-white"
+      placeholder="Ara: Şarkı İsmi / Tür / Dil"
+    />
 
-      <select
-        value={formData.hazirMuzikId}
-        onChange={(e) => setFormData((p) => ({ ...p, hazirMuzikId: e.target.value }))}
-        className="w-full px-4 py-3 border-2 border-amber-200 rounded-xl focus:border-amber-600 focus:outline-none transition bg-white"
-      >
-        <option value="">— Müzik seç —</option>
-        {filtered.map((s) => (
-          <option key={s.id} value={s.id}>
-            {s.title}
-          </option>
-        ))}
-      </select>
+    <select
+      value={formData.hazirMuzikId}
+      onChange={(e) => setFormData((p) => ({ ...p, hazirMuzikId: e.target.value }))}
+      className="w-full px-4 py-3 border-2 border-amber-200 rounded-xl focus:border-amber-600 focus:outline-none transition bg-white"
+    >
+      <option value="">— Müzik seç —</option>
+      {filtered.map((s) => (
+        <option key={s.id} value={s.id}>
+          {s.title}
+        </option>
+      ))}
+    </select>
 
-      {filtered.length === 0 && (
-        <div className="mt-3 text-sm text-amber-800">Sonuç yok. Arama kelimesini değiştir.</div>
-      )}
-
-      {selected?.type === 'youtube' && (
-        <div className="mt-4">
-          <div className="flex items-center justify-between mb-2">
-            <div className="text-sm font-semibold text-stone-700">Seçilen: {selected.title}</div>
-            <div className="text-xs text-stone-500">{selected.tags?.length ? selected.tags.join(' • ') : ''}</div>
-          </div>
-
-          <div className="rounded-xl overflow-hidden border border-amber-100 bg-white">
-            <iframe
-              width="100%"
-              height="220"
-              src={`https://www.youtube.com/embed/${selected.youtubeId}`}
-              title={selected.title}
-              frameBorder="0"
-              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-              allowFullScreen
-            />
-          </div>
-        </div>
-      )}
-    </div>
-
-     {selected && (
-  <div className="mt-4 bg-white border border-amber-200 rounded-xl p-4">
-    <div className="text-sm font-semibold text-stone-800 mb-2">
-      Oyuncakta Duyulacak (16 kHz • Mono)
-    </div>
-
-    {toyPreviewExists === null && (
-      <div className="text-xs text-stone-600">Kontrol ediliyor...</div>
+    {filtered.length === 0 && (
+      <div className="mt-3 text-sm text-amber-800">Sonuç yok. Arama kelimesini değiştir.</div>
     )}
 
-    {toyPreviewExists === false && (
-      <div className="text-xs text-red-700">
-        Bu şarkı için 16 kHz önizleme dosyası bulunamadı.
-        <br />
-        Lütfen <b>public/previews16k/{selected.id}.mp3</b> dosyasını ekleyin
-        veya kullanıcıya “dosya yükle / süre belirt” seçeneklerini kullandırın.
+    {selected?.type === 'youtube' && (
+      <div className="mt-4">
+        <div className="flex items-center justify-between mb-2">
+          <div className="text-sm font-semibold text-stone-700">Seçilen: {selected.title}</div>
+          <div className="text-xs text-stone-500">{selected.tags?.length ? selected.tags.join(' • ') : ''}</div>
+        </div>
+
+        <div className="rounded-xl overflow-hidden border border-amber-100 bg-white">
+          <iframe
+            width="100%"
+            height="220"
+            src={`https://www.youtube.com/embed/${selected.youtubeId}`}
+            title={selected.title}
+            frameBorder="0"
+            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+            allowFullScreen
+          />
+        </div>
       </div>
     )}
 
-    {toyPreviewExists === true && (
-      <audio controls src={toyUrl} className="w-full" />
+    {/* ✅ BU BLOK ARTIK ROOT DIV’İN İÇİNDE */}
+    {selected && (
+      <div className="mt-4 bg-white border border-amber-200 rounded-xl p-4">
+        <div className="text-sm font-semibold text-stone-800 mb-2">
+          Oyuncakta Duyulacak (16 kHz • Mono)
+        </div>
+
+        {toyPreviewExists === null && (
+          <div className="text-xs text-stone-600">Kontrol ediliyor...</div>
+        )}
+
+        {toyPreviewExists === false && (
+          <div className="text-xs text-red-700">
+            Bu şarkı için 16 kHz önizleme dosyası bulunamadı.
+            <br />
+            Lütfen <b>public/previews16k/{selected?.id}.mp3</b> dosyasını ekleyin
+            veya kullanıcıya “dosya yükle / süre belirt” seçeneklerini kullandırın.
+          </div>
+        )}
+
+        {toyPreviewExists === true && (
+          <audio controls src={toyUrl} className="w-full" />
+        )}
+      </div>
     )}
   </div>
-)}
-  );
-}
+);
 
 
 /* =========================================================
