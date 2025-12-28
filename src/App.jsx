@@ -1208,24 +1208,22 @@ function InternetMuzik({ youtubeLink, onChange, videoId, onDuration }) {
   const hasInput = (youtubeLink || '').trim().length > 0;
   const playerRef = useRef(null);
   const hostRef = useRef(null);
+
   useEffect(() => {
-    // videoId yoksa parent'taki duration'ı sıfırla
-    if (!videoId) {
-      onDuration?.(null);
-    }
+    if (!videoId) onDuration?.(null);
   }, [videoId, onDuration]);
-  
+
   useEffect(() => {
     if (!videoId) return;
 
     let destroyed = false;
+    let pollTimer = null;
 
-    const createPlayer = () => {
+    function createPlayer() {
       if (destroyed) return;
       if (!hostRef.current) return;
       if (!(window.YT && window.YT.Player)) return;
 
-      // eski player varsa temizle
       if (playerRef.current) {
         try { playerRef.current.destroy(); } catch {}
         playerRef.current = null;
@@ -1235,29 +1233,33 @@ function InternetMuzik({ youtubeLink, onChange, videoId, onDuration }) {
         videoId,
         width: '100%',
         height: '220',
-        playerVars: {
-          rel: 0,
-          modestbranding: 1,
+        playerVars: { rel: 0, modestbranding: 1 },
+        events: {
+          onReady: () => {
+            let tries = 0;
+            if (pollTimer) clearInterval(pollTimer);
+
+            pollTimer = setInterval(() => {
+              tries++;
+              const dur = playerRef.current?.getDuration?.();
+              if (dur && dur > 0) {
+                onDuration?.(dur);
+                clearInterval(pollTimer);
+                pollTimer = null;
+              }
+              if (tries >= 20) {
+                clearInterval(pollTimer);
+                pollTimer = null;
+              }
+            }, 500);
+          },
+          onStateChange: () => {
+            const dur = playerRef.current?.getDuration?.();
+            if (dur && dur > 0) onDuration?.(dur);
+          },
         },
-       events: {
-  onReady: () => {
-    // duration bazen geç geliyor: 10 saniye boyunca dene
-    let tries = 0;
-    const t = setInterval(() => {
-      tries++;
-      const dur = playerRef.current?.getDuration?.();
-      if (dur && dur > 0) {
-        onDuration?.(dur);
-        clearInterval(t);
-      }
-      if (tries >= 20) clearInterval(t); // 20 * 500ms = 10sn
-    }, 500);
-  },
-  onStateChange: () => {
-    const dur = playerRef.current?.getDuration?.();
-    if (dur && dur > 0) onDuration?.(dur);
-  },
-}
+      });
+    }
 
     if (window.YT && window.YT.Player) {
       createPlayer();
@@ -1268,21 +1270,26 @@ function InternetMuzik({ youtubeLink, onChange, videoId, onDuration }) {
         createPlayer();
       };
     }
-   }); // ✅ BURASI ÖNEMLİ: YT.Player kapanışı
-    };
+
     return () => {
       destroyed = true;
+
+      if (pollTimer) {
+        clearInterval(pollTimer);
+        pollTimer = null;
+      }
+
       if (playerRef.current) {
         try { playerRef.current.destroy(); } catch {}
         playerRef.current = null;
       }
     };
-  }, [videoId]);
+  }, [videoId, onDuration]);
 
   return (
     <div>
       <p className="text-sm text-stone-700 mb-3">
-        YouTube linki giririniz.
+        YouTube linki gir (yapıştırınca otomatik önizleme çıkar):
       </p>
 
       <input
@@ -1293,24 +1300,17 @@ function InternetMuzik({ youtubeLink, onChange, videoId, onDuration }) {
         placeholder="https://youtube.com/watch?v=...  veya  https://youtu.be/..."
       />
 
-      {/* Hata */}
       {hasInput && !videoId && (
         <div className="mt-3 bg-red-50 border border-red-200 rounded-lg p-3 flex items-start gap-2">
           <AlertCircle className="w-4 h-4 text-red-600 mt-0.5" />
-          <div className="text-xs text-red-700">
-            Bu link geçerli değildir. 
-          </div>
+          <div className="text-xs text-red-700">Linki YouTube olarak okuyamadım.</div>
         </div>
       )}
 
-      {/* Preview */}
       {videoId && (
         <div className="mt-4">
-          <div className="text-sm font-semibold text-stone-700 mb-2">
-            Önizleme:
-          </div>
+          <div className="text-sm font-semibold text-stone-700 mb-2">Önizleme:</div>
           <div className="rounded-xl overflow-hidden border border-amber-100 bg-white">
-            {/* 👇 YouTube iframe'ı BURAYA API basıyor */}
             <div ref={hostRef} />
           </div>
         </div>
