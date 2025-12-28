@@ -231,7 +231,28 @@ const [formData, setFormData] = useState({
   ytStartSec: '',
   ytEndSec: '',
 });
-  const submitDisabled = useMemo(() => {
+  const [showNotice, setShowNotice] = useState(false);
+useEffect(() => {
+  if (window.YT && window.YT.Player) return;
+
+  // zaten ekliysek tekrar ekleme
+  if (document.querySelector('script[data-yt-iframe-api="1"]')) return;
+
+  const tag = document.createElement('script');
+  tag.src = 'https://www.youtube.com/iframe_api';
+  tag.async = true;
+  tag.dataset.ytIframeApi = '1';
+  document.body.appendChild(tag);
+}, []);
+  useEffect(() => {
+  setShowNotice(true);
+}, []);
+
+  const internetVideoId = useMemo(
+    () => extractYouTubeId(formData.youtubeLink),
+    [formData.youtubeLink]
+  );
+ const submitDisabled = useMemo(() => {
     // temel zorunlular
     if (!formData.musteriAdi.trim()) return true;
     if (!formData.telefon.trim()) return true;
@@ -285,29 +306,6 @@ const [formData, setFormData] = useState({
     internetVideoId,
     ytDurationSec,
   ]);
-
-  const [showNotice, setShowNotice] = useState(false);
-useEffect(() => {
-  if (window.YT && window.YT.Player) return;
-
-  // zaten ekliysek tekrar ekleme
-  if (document.querySelector('script[data-yt-iframe-api="1"]')) return;
-
-  const tag = document.createElement('script');
-  tag.src = 'https://www.youtube.com/iframe_api';
-  tag.async = true;
-  tag.dataset.ytIframeApi = '1';
-  document.body.appendChild(tag);
-}, []);
-  useEffect(() => {
-  setShowNotice(true);
-}, []);
-
-  const internetVideoId = useMemo(
-    () => extractYouTubeId(formData.youtubeLink),
-    [formData.youtubeLink]
-  );
-
   useEffect(() => {
     if (typeof document === 'undefined') return;
 
