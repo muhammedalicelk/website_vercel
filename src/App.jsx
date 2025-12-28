@@ -18,6 +18,7 @@ const SONGS = [
   /* =====================
      ÇOCUK
      ===================== */
+  /*  
   YT('Kukuli – Bakkal Amca', 't8moJLzPhoU', { tags: ['Çocuk', 'Türkçe'] }),
   YT('Dandini Dandini Dastana', '4NBBFSqv_GY', { tags: ['Çocuk', 'Türkçe'] }),
   YT('Otobüsün Tekerleği Dönüyor', 'W-nWnHmC4Gc', { tags: ['Çocuk', 'Türkçe'] }),
@@ -25,7 +26,7 @@ const SONGS = [
   YT('Ayı', 'QSGubfzxIa0', { tags: ['Çocuk', 'Türkçe'] }),
   YT('Gezegenler', 'rGGZnh8W7Oo', { tags: ['Çocuk', 'Türkçe'] }),
   YT('Twinkle Twinkle Little Star', 'yCjJyiqpAuU', { tags: ['Çocuk', 'İngilizce'] }),
-
+  */
   /* =====================
      TÜRKÇE ROMANTİK
      ===================== */
