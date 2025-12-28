@@ -256,6 +256,13 @@ const [formData, setFormData] = useState({
 const fileInputRef2 = useRef(null);
 const fileDialogOpenRef = useRef(false);
   const [showNotice, setShowNotice] = useState(false);
+
+   seEffect(() => {
+  if (!internetVideoId) {
+    setYtDurationSec(null);
+    setFormData((p) => ({ ...p, ytStartSec: '', ytEndSec: '' }));
+  }
+}, [internetVideoId]);
   useEffect(() => {
   const cleanupAfterFileDialog = () => {
     if (!fileDialogOpenRef.current) return;
@@ -882,9 +889,10 @@ function Input({ label, value, onChange, placeholder }) {
 function YouTubeRangePicker({ ytDurationSec, formData, setFormData }) {
   // Video süresi varsa: üst sınır video süresi
   // yoksa: geçici olarak 310 göster (duration gelince otomatik genişleyecek)
-  const videoMax = Math.floor(
-    (Number.isFinite(ytDurationSec) && ytDurationSec > 0) ? ytDurationSec : MAX_RANGE_SEC
-  );
+const FALLBACK_MAX = 2 * 60 * 60; // 2 saat
+const videoMax = Math.floor(
+  (Number.isFinite(ytDurationSec) && ytDurationSec > 0) ? ytDurationSec : FALLBACK_MAX
+);
 
   // start: 0..videoMax-1 (end > start şartı için)
   const start = clamp(Number(formData.ytStartSec || 0), 0, Math.max(0, videoMax - 1));
@@ -1206,7 +1214,7 @@ function InternetMuzik({ youtubeLink, onChange, videoId, onDuration }) {
       onDuration?.(null);
     }
   }, [videoId, onDuration]);
-
+  
   useEffect(() => {
     if (!videoId) return;
 
@@ -1231,19 +1239,25 @@ function InternetMuzik({ youtubeLink, onChange, videoId, onDuration }) {
           rel: 0,
           modestbranding: 1,
         },
-        events: {
-          onReady: () => {
-            const dur = playerRef.current.getDuration();
-            if (dur && dur > 0) onDuration?.(dur);
-          },
-          onStateChange: () => {
-            // bazı videolarda duration geç geliyor
-            const dur = playerRef.current.getDuration();
-            if (dur && dur > 0) onDuration?.(dur);
-          },
-        },
-      });
-    };
+       events: {
+  onReady: () => {
+    // duration bazen geç geliyor: 10 saniye boyunca dene
+    let tries = 0;
+    const t = setInterval(() => {
+      tries++;
+      const dur = playerRef.current?.getDuration?.();
+      if (dur && dur > 0) {
+        onDuration?.(dur);
+        clearInterval(t);
+      }
+      if (tries >= 20) clearInterval(t); // 20 * 500ms = 10sn
+    }, 500);
+  },
+  onStateChange: () => {
+    const dur = playerRef.current?.getDuration?.();
+    if (dur && dur > 0) onDuration?.(dur);
+  },
+}
 
     if (window.YT && window.YT.Player) {
       createPlayer();
