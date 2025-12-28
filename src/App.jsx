@@ -217,6 +217,7 @@ Amaç kullanıcı geri bildirimi ve ürün geliştirmedir. Fatura düzenlenmemek
 Katılım bedeli ve kargo daha sonraki aşamada paylaşılacaktır.`;
 
 export default function SesliOyuncakSiparis() {
+   const [hazirToyOk, setHazirToyOk] = useState(null); 
   const [activeTab, setActiveTab] = useState('hazir');
  const [ytDurationSec, setYtDurationSec] = useState(null);
 const [formData, setFormData] = useState({
@@ -323,10 +324,26 @@ for (const nf of newFiles) {
       return;
     }
 
-    if (activeTab === 'hazir' && !formData.hazirMuzikId) {
-      alert('Lütfen bir müzik seçin!');
-      return;
-    }
+  if (activeTab === 'hazir') {
+  if (!formData.hazirMuzikId) {
+    alert('Lütfen bir müzik seçin!');
+    return;
+  }
+
+  if (hazirToyOk === false) {
+    alert(
+      'Seçtiğiniz hazır müzik için oyuncakta çalınacak 16 kHz ses bulunmuyor.\n' +
+      'Lütfen başka bir müzik seçin veya Dosya / YouTube seçeneklerini kullanın.'
+    );
+    return;
+  }
+
+  if (hazirToyOk === null) {
+    alert('Oyuncak sesi kontrol ediliyor, lütfen bir saniye bekleyin.');
+    return;
+  }
+}
+
 
     if (activeTab === 'yukle' && formData.yukluDosyalar.length === 0) {
       alert('Lütfen en az bir dosya yükleyin!');
@@ -524,7 +541,7 @@ if (activeTab === 'internet') {
               </div>
 
               <div className="bg-amber-50/30 rounded-xl p-6 border border-amber-100">
-                {activeTab === 'hazir' && <HazirMuzikPicker formData={formData} setFormData={setFormData} />}
+                {activeTab === 'hazir' && <HazirMuzikPicker formData={formData} setFormData={setFormData} onToyPreviewCheck={setHazirToyOk}/>}
 
                 {activeTab === 'yukle' && (
                   <div>
@@ -655,13 +672,20 @@ if (activeTab === 'internet') {
               </div>
             </div>
 
-            <button
-              type="button"
-              onClick={handleSubmit}
-              className="w-full bg-gradient-to-r from-amber-700 to-yellow-600 text-white py-4 rounded-xl font-semibold text-lg hover:from-amber-800 hover:to-yellow-700 transition shadow-lg hover:shadow-xl"
-            >
-              Siparişi Tamamla
-            </button>
+<button
+  type="button"
+  disabled={submitDisabled}
+  onClick={handleSubmit}
+  className={`w-full py-4 rounded-xl font-semibold text-lg transition shadow-lg
+    ${
+      submitDisabled
+        ? 'bg-stone-300 text-stone-500 cursor-not-allowed'
+        : 'bg-gradient-to-r from-amber-700 to-yellow-600 text-white hover:from-amber-800 hover:to-yellow-700'
+    }`}
+>
+  Siparişi Tamamla
+</button>
+
 
             <p className="text-xs text-stone-500 text-center mt-4">
               Siparişiniz alındıktan sonra sizinle iletişime geçeceğiz
@@ -712,9 +736,9 @@ function Input({ label, value, onChange, placeholder }) {
 /* =========================================================
    HAZIR MÜZİK PICKER
    ========================================================= */
-function HazirMuzikPicker({ formData, setFormData }) {
+function HazirMuzikPicker({ formData, setFormData, onToyPreviewCheck }) {
   const [query, setQuery] = useState('');
-
+  
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
     if (!q) return SONGS;
@@ -724,8 +748,46 @@ function HazirMuzikPicker({ formData, setFormData }) {
       return inTitle || inTags;
     });
   }, [query]);
+  const [toyPreviewExists, setToyPreviewExists] = useState(null); // null | true | false
 
-  const selected = SONGS.find((s) => s.id === formData.hazirMuzikId);
+const selected = SONGS.find((s) => s.id === formData.hazirMuzikId);
+const toyUrl = selected ? `/previews16k/${selected.id}.mp3` : '';
+
+useEffect(() => {
+  let cancelled = false;
+
+  async function check() {
+    if (!selected) {
+      setToyPreviewExists(null);
+      onToyPreviewCheck?.(null);
+      return;
+    }
+
+    setToyPreviewExists(null); // kontrol ediliyor
+
+    try {
+      const r = await fetch(toyUrl, { method: 'HEAD', cache: 'no-store' });
+      if (cancelled) return;
+
+      if (r.ok) {
+        setToyPreviewExists(true);
+        onToyPreviewCheck?.(true);   // ✅ İŞTE BU EKSİKTİ
+      } else {
+        setToyPreviewExists(false);
+        onToyPreviewCheck?.(false);
+      }
+    } catch {
+      if (cancelled) return;
+      setToyPreviewExists(false);
+      onToyPreviewCheck?.(false);
+    }
+  }
+
+  check();
+  return () => {
+    cancelled = true;
+  };
+}, [selected?.id]);
 
   return (
     <div>
@@ -779,6 +841,30 @@ function HazirMuzikPicker({ formData, setFormData }) {
     </div>
   );
 }
+{selected && (
+  <div className="mt-4 bg-white border border-amber-200 rounded-xl p-4">
+    <div className="text-sm font-semibold text-stone-800 mb-2">
+      Oyuncakta Duyulacak (16 kHz • Mono)
+    </div>
+
+    {toyPreviewExists === null && (
+      <div className="text-xs text-stone-600">Kontrol ediliyor...</div>
+    )}
+
+    {toyPreviewExists === false && (
+      <div className="text-xs text-red-700">
+        Bu şarkı için 16 kHz önizleme dosyası bulunamadı.
+        <br />
+        Lütfen <b>public/previews16k/{selected.id}.mp3</b> dosyasını ekleyin
+        veya kullanıcıya “dosya yükle / süre belirt” seçeneklerini kullandırın.
+      </div>
+    )}
+
+    {toyPreviewExists === true && (
+      <audio controls src={toyUrl} className="w-full" />
+    )}
+  </div>
+)}
 
 /* =========================================================
    İNTERNETTEN MÜZİK (YouTube preview)
