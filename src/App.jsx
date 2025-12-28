@@ -245,6 +245,33 @@ useEffect(() => {
   tag.dataset.ytIframeApi = '1';
   document.body.appendChild(tag);
 }, []);
+
+   useEffect(() => {
+  // Sekmeden çıkınca internet sekmesine ait hatalar/uyarılar taşınmasın
+  if (activeTab !== 'internet') {
+    setYtDurationSec(null);
+
+    setFormData((p) => ({
+      ...p,
+      youtubeLink: '',
+      ytStartSec: '',
+      ytEndSec: '',
+    }));
+  }
+
+  // Hazır sekmeden çıkınca "hazirToyOk" state'i taşınmasın (özellikle null/false kalmasın)
+  if (activeTab !== 'hazir') {
+    setHazirToyOk(null);
+    // istersen seçimi de temizleyebilirsin:
+    // setFormData(p => ({ ...p, hazirMuzikId: '' }));
+  }
+
+  // Dosya sekmesi için isteğe bağlı:
+  // Eğer "dosyalar tablar arasında kalsın" istiyorsan bunu ekleme.
+  // if (activeTab !== 'yukle') {
+  //   setFormData(p => ({ ...p, yukluDosyalar: [] }));
+  // }
+}, [activeTab]);
   useEffect(() => {
   setShowNotice(true);
 }, []);
@@ -253,6 +280,12 @@ useEffect(() => {
     () => extractYouTubeId(formData.youtubeLink),
     [formData.youtubeLink]
   );
+   useEffect(() => {
+  // Link silindiyse / geçersizse, eski video süresi ekranda kalmasın
+  if (!internetVideoId) {
+    setYtDurationSec(null);
+  }
+}, [internetVideoId]);
  const submitDisabled = useMemo(() => {
     // temel zorunlular
     if (!formData.musteriAdi.trim()) return true;
@@ -627,9 +660,9 @@ if (activeTab === 'internet') {
   </div>
 )}
 
-{ytDurationSec && ytDurationSec > 310 && (
+{activeTab === 'internet' && internetVideoId && ytDurationSec && ytDurationSec > 310 && (
   <div className="mt-3 bg-red-50 border border-red-200 rounded-lg p-3 text-xs text-red-700">
-    Bu video <b>310 sn’den uzun</b>. Lütfen ya dosya yükleyin ya da aşağıdan süre aralığı belirtin.
+    Bu video <b>310 sn’den uzundur.</b>. Lütfen aşağıdan süre aralığı belirtiniz.
   </div>
 )}
 {activeTab === 'internet' && (
@@ -929,6 +962,12 @@ function InternetMuzik({ youtubeLink, onChange, videoId, onDuration }) {
   const hasInput = (youtubeLink || '').trim().length > 0;
   const playerRef = useRef(null);
   const hostRef = useRef(null);
+  useEffect(() => {
+    // videoId yoksa parent'taki duration'ı sıfırla
+    if (!videoId) {
+      onDuration?.(null);
+    }
+  }, [videoId, onDuration]);
 
   useEffect(() => {
     if (!videoId) return;
