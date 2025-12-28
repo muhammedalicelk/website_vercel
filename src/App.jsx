@@ -406,33 +406,33 @@ for (const nf of newFiles) {
 
   const handleSubmit = async () => {
     if (!formData.musteriAdi.trim() || !formData.telefon.trim()) {
-      alert('Lütfen ad ve telefon bilgilerini doldurun!');
+      alert('Lütfen ad ve telefon bilgilerini doldurunuz.');
       return;
     }
 
   if (activeTab === 'hazir') {
   if (!formData.hazirMuzikId) {
-    alert('Lütfen bir müzik seçin!');
+    alert('Lütfen bir müzik seçiniz.');
     return;
   }
 
   if (hazirToyOk === false) {
     alert(
       'Seçtiğiniz hazır müzik için oyuncakta çalınacak 16 kHz ses bulunmuyor.\n' +
-      'Lütfen başka bir müzik seçin veya Dosya / YouTube seçeneklerini kullanın.'
+      'Lütfen başka bir müzik seçiniz veya Dosya / YouTube seçeneklerini kullanınız.'
     );
     return;
   }
 
   if (hazirToyOk === null) {
-    alert('Oyuncak sesi kontrol ediliyor, lütfen bir saniye bekleyin.');
+    alert('Oyuncak sesi kontrol ediliyor, lütfen bekleyiniz.');
     return;
   }
 }
 
 
     if (activeTab === 'yukle' && formData.yukluDosyalar.length === 0) {
-      alert('Lütfen en az bir dosya yükleyin!');
+      alert('Lütfen en az bir dosya yükleyiniz.');
       return;
     }
 
@@ -443,7 +443,7 @@ if (activeTab === 'internet') {
 
   if (!hasUpload && !hasManualRange) {
     alert(
-      'YouTube seçimi için lütfen ya ses dosyasını yükleyin ya da süre aralığını belirtin.'
+      'YouTube seçimi için lütfen ses dosyasını yükleyiniz ya da süre aralığını belirtiniz.'
     );
     return;
   }
@@ -453,13 +453,13 @@ if (activeTab === 'internet') {
     const end = Number(formData.ytEndSec);
 
     if (isNaN(start) || isNaN(end) || end <= start) {
-      alert('Lütfen geçerli bir başlangıç ve bitiş süresi girin.');
+      alert('Lütfen geçerli bir başlangıç ve bitiş süresi giriniz.');
       return;
     }
 
     if (end - start > 310) {
       alert(
-        'Seçilen süre 310 saniyeden uzun. Lütfen süreyi kısaltın veya dosya yükleyin.'
+        'Seçilen süre 310 saniyeden uzundur. Lütfen aşağıdan süre aralığı belirtiniz.'
       );
       return;
     }
@@ -467,7 +467,7 @@ if (activeTab === 'internet') {
 }
 if (activeTab === 'internet') {
   if (!internetVideoId) {
-    alert('YouTube linki geçersiz görünüyor.');
+    alert('Link geçersizdir.');
     return;
   }
 
@@ -475,7 +475,7 @@ if (activeTab === 'internet') {
   const hasManualRange = formData.ytStartSec !== '' && formData.ytEndSec !== '';
 
   if (ytDurationSec && ytDurationSec > 310 && !hasUpload && !hasManualRange) {
-    alert('Video 310 sn’den uzun. Lütfen dosya yükleyin veya süre aralığı belirtin.');
+    alert('Video 310 sn’den uzundur. Lütfen dosya yükleyiniz veya süre aralığı belirtiniz.');
     return;
   }
 
@@ -484,11 +484,11 @@ if (activeTab === 'internet') {
     const end = Number(formData.ytEndSec);
 
     if (isNaN(start) || isNaN(end) || end <= start) {
-      alert('Lütfen geçerli bir başlangıç ve bitiş süresi girin.');
+      alert('Lütfen geçerli bir başlangıç ve bitiş süresi giriniz.');
       return;
     }
     if (end - start > 310) {
-      alert('Seçilen süre 310 sn’den uzun. Lütfen kısaltın.');
+      alert('Seçilen süre 310 sn’den uzundur. Lütfen aşağıdan süre aralığı belirtiniz.');
       return;
     }
     if (ytDurationSec && end > ytDurationSec) {
@@ -516,11 +516,11 @@ if (activeTab === 'internet') {
 
       const j = await resp.json();
       if (!j.ok) {
-        alert('Sipariş oluştu ama Telegram mesajı gidmedi: ' + (j.error || 'unknown'));
+        alert('Sipariş oluşturulamadı lütfen daha sonra tekrar deneyiniz. ' + (j.error || 'unknown'));
         return;
       }
     } catch (e) {
-      alert('Sipariş oluştu ama Telegram mesajı gönderilemedi: ' + (e?.message || e));
+      alert('Sipariş oluşturulamadı lütfen daha sonra tekrar deneyiniz.' + (e?.message || e));
       return;
     }
 
@@ -662,7 +662,7 @@ if (activeTab === 'internet') {
 
 {activeTab === 'internet' && internetVideoId && ytDurationSec && ytDurationSec > 310 && (
   <div className="mt-3 bg-red-50 border border-red-200 rounded-lg p-3 text-xs text-red-700">
-    Bu video <b>310 sn’den uzundur.</b>. Lütfen aşağıdan süre aralığı belirtiniz.
+    Bu video <b>310 sn’den uzundur.</b> Lütfen aşağıdan süre aralığı belirtiniz.
   </div>
 )}
 {activeTab === 'internet' && (
@@ -1045,7 +1045,7 @@ function InternetMuzik({ youtubeLink, onChange, videoId, onDuration }) {
         <div className="mt-3 bg-red-50 border border-red-200 rounded-lg p-3 flex items-start gap-2">
           <AlertCircle className="w-4 h-4 text-red-600 mt-0.5" />
           <div className="text-xs text-red-700">
-            Linki YouTube olarak okuyamadım.
+            Bu link geçerli değildir. 
           </div>
         </div>
       )}
