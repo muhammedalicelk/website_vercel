@@ -817,6 +817,11 @@ if (activeTab === 'internet') {
     </>
   )}
 </div>
+</div>
+</div>
+</>
+);
+}
 
 
 <button
