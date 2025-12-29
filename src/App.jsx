@@ -1,3 +1,55 @@
+
+<style>{`
+  /* ✅ Native mavi dolguyu öldür */
+  .hazirRange{
+    -webkit-appearance:none;
+    appearance:none;
+    width:100%;
+    height:26px;
+    background:transparent;
+    outline:none;
+    accent-color:#b45309; /* bazı browserlar için ek garanti */
+  }
+
+  /* ✅ Track tamamen görünmez */
+  .hazirRange::-webkit-slider-runnable-track{
+    height:0px;
+    background:transparent;
+    border:none;
+  }
+
+  /* ✅ Thumb turuncu */
+  .hazirRange::-webkit-slider-thumb{
+    -webkit-appearance:none;
+    appearance:none;
+    width:16px;
+    height:16px;
+    border-radius:9999px;
+    background:#b45309;     /* amber-700 */
+    border:2px solid #92400e; /* amber-800 */
+    margin-top:-8px; /* track 0 olduğu için ortalamak */
+    cursor:pointer;
+  }
+
+  /* Firefox */
+  .hazirRange::-moz-range-track{
+    height:0px;
+    background:transparent;
+    border:none;
+  }
+  .hazirRange::-moz-range-progress{
+    background:transparent;
+  }
+  .hazirRange::-moz-range-thumb{
+    width:16px;
+    height:16px;
+    border-radius:9999px;
+    background:#b45309;
+    border:2px solid #92400e;
+    cursor:pointer;
+  }
+`}</style>
+
 import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { Music, Upload, Globe, User, Play, Pause, X, AlertCircle } from 'lucide-react';
 const AUDIO_ACCEPT = 'audio/*';
