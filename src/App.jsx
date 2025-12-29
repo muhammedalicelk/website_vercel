@@ -1056,7 +1056,7 @@ function HazirClipTrimmer({ clip, onRemove, onUpdate }) {
   const start = clip.start || 0;
   const end = clip.end || Math.max(0.5, start + 0.5);
 const clamp01 = (x) => Math.max(0, Math.min(100, x));
-const clamp01 = (x) => Math.max(0, Math.min(100, x));
+
 
 const startPct = duration ? clamp01((start / duration) * 100) : 0;
 const endPct   = duration ? clamp01((end   / duration) * 100) : 0;
@@ -1115,8 +1115,6 @@ const endPct   = duration ? clamp01((end   / duration) * 100) : 0;
   };
 
   const selectedDur = Math.max(0, end - start);
-  const startPct = duration ? (start / duration) * 100 : 0;
-  const endPct = duration ? (end / duration) * 100 : 0;
 
   const handleStart = (val) => {
     const nextStart = Math.min(val, end - 0.5);
@@ -1237,9 +1235,8 @@ const endPct   = duration ? clamp01((end   / duration) * 100) : 0;
 
 
 function YouTubeRangePicker({ ytDurationSec, formData, setFormData }) {
-  // Video süresi varsa: üst sınır video süresi
-  // yoksa: geçici olarak 310 göster (duration gelince otomatik genişleyecek)
-const FALLBACK_MAX = 2 * 60 * 60; // 2 saat
+  // Video süresi varsa...
+  const FALLBACK_MAX = 2 * 60 * 60;
 const videoMax = Math.floor(
   (Number.isFinite(ytDurationSec) && ytDurationSec > 0) ? ytDurationSec : FALLBACK_MAX
 );
