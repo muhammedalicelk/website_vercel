@@ -244,7 +244,6 @@ export default function SesliOyuncakSiparis() {
    const fileDialogOpenRef = useRef(false);
 const fileInputRef = useRef(null);
 const fileInputRef2 = useRef(null);
-   const [hazirToyOk, setHazirToyOk] = useState(null); 
   const [activeTab, setActiveTab] = useState('hazir');
  const [ytDurationSec, setYtDurationSec] = useState(null);
 const [formData, setFormData] = useState({
@@ -332,12 +331,7 @@ useEffect(() => {
     }));
   }
 
-  // Hazır sekmeden çıkınca "hazirToyOk" state'i taşınmasın (özellikle null/false kalmasın)
-  if (activeTab !== 'hazir') {
-    setHazirToyOk(null);
-    // istersen seçimi de temizleyebilirsin:
-    // setFormData(p => ({ ...p, hazirMuzikId: '' }));
-  }
+
 
   // Dosya sekmesi için isteğe bağlı:
   // Eğer "dosyalar tablar arasında kalsın" istiyorsan bunu ekleme.
@@ -349,23 +343,28 @@ useEffect(() => {
   setShowNotice(true);
 }, []);
 
- 
- const submitDisabled = useMemo(() => {
-
-    const hazirTotalSec = useMemo(() => {
-  return (formData.hazirClips || []).reduce((sum, c) => sum + Math.max(0, (c.end - c.start)), 0);
+ const hazirTotalSec = useMemo(() => {
+  return (formData.hazirClips || []).reduce(
+    (sum, c) => sum + Math.max(0, (Number(c.end) || 0) - (Number(c.start) || 0)),
+    0
+  );
 }, [formData.hazirClips]);
+ const submitDisabled = useMemo(() => {
 
     // temel zorunlular
     if (!formData.musteriAdi.trim()) return true;
     if (!formData.telefon.trim()) return true;
 
-    // tab bazlı zorunlular
     if (activeTab === 'hazir') {
-      if (!formData.hazirMuzikId) return true;
-      // 16k preview yoksa veya hala kontrol ediliyorsa disable
-      if (hazirToyOk !== true) return true;
-    }
+  const clips = formData.hazirClips || [];
+  if (clips.length === 0) return true;
+
+  const total = hazirTotalSec;
+  if (total > MAX_TOTAL_SEC + 0.01) return true;
+
+  const anyMissing = clips.some((c) => c.toyOk === false);
+  if (anyMissing) return true;
+}
 
     if (activeTab === 'yukle') {
       if (!formData.yukluDosyalar || formData.yukluDosyalar.length === 0) return true;
@@ -405,9 +404,9 @@ useEffect(() => {
     formData.ytStartSec,
     formData.ytEndSec,
     activeTab,
-    hazirToyOk,
     internetVideoId,
     ytDurationSec,
+    hazirTotalSec,
   ]);
   useEffect(() => {
     if (typeof document === 'undefined') return;
@@ -445,16 +444,6 @@ useEffect(() => {
   yukluDosyalar: [...p.yukluDosyalar, ...newFiles],
 }));
 
-for (const nf of newFiles) {
-  try {
-    const wavBlob = await fileTo16kWavBlob(nf.file, 16000);
-    const purl = URL.createObjectURL(wavBlob);
-    updateDosya(nf.id, { preview16kUrl: purl, preview16kReady: true });
-  } catch (err) {
-    console.error('16k convert failed:', err);
-    updateDosya(nf.id, { preview16kReady: false });
-  }
-}
     e.target.value = '';
      e.target.blur?.();
   };
@@ -500,19 +489,7 @@ if (activeTab === 'hazir') {
   }
 }
 
-  if (hazirToyOk === false) {
-    alert(
-      'Seçtiğiniz hazır müzik için oyuncakta çalınacak 16 kHz ses bulunmuyor.\n' +
-      'Lütfen başka bir müzik seçiniz veya Dosya / YouTube seçeneklerini kullanınız.'
-    );
-    return;
-  }
 
-  if (hazirToyOk === null) {
-    alert('Oyuncak sesi kontrol ediliyor, lütfen bekleyiniz.');
-    return;
-  }
-}
 
 
     if (activeTab === 'yukle' && formData.yukluDosyalar.length === 0) {
