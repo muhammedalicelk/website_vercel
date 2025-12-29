@@ -1055,7 +1055,9 @@ function HazirClipTrimmer({ clip, onRemove, onUpdate }) {
   const duration = clip.songDur || 0;
   const start = clip.start || 0;
   const end = clip.end || Math.max(0.5, start + 0.5);
-
+const clamp01 = (x) => Math.max(0, Math.min(100, x));
+const startPct = duration ? clamp01((start / duration) * 100) : 0;
+const endPct   = duration ? clamp01((end   / duration) * 100) : 0;
   const formatTime = (s) => {
     const m = Math.floor(s / 60);
     const sec = Math.floor(s % 60);
@@ -1166,19 +1168,82 @@ function HazirClipTrimmer({ clip, onRemove, onUpdate }) {
 
       {/* Sliderlar */}
       {duration > 0 && (
-        <div className="mt-4">
-          <div
-            className="h-2 rounded-lg bg-stone-200"
-            style={{
-              background: `linear-gradient(to right,
-                #e7e5e4 0%,
-                #e7e5e4 ${startPct}%,
-                #b45309 ${startPct}%,
-                #b45309 ${endPct}%,
-                #e7e5e4 ${endPct}%,
-                #e7e5e4 100%)`,
-            }}
-          />
+<div className="mt-4">
+  {/* Track */}
+  <div
+    className="h-2 rounded-lg bg-stone-200"
+    style={{
+      background: `linear-gradient(to right,
+        #e7e5e4 0%,
+        #e7e5e4 ${startPct}%,
+        #b45309 ${startPct}%,
+        #b45309 ${endPct}%,
+        #e7e5e4 ${endPct}%,
+        #e7e5e4 100%)`,
+    }}
+  />
+
+  {/* Slider area */}
+  <div className="relative mt-2 pt-7">
+    {/* Başlangıç etiketi */}
+    <div
+      className="absolute -top-1 text-[11px] px-2 py-1 rounded-md bg-stone-900 text-white shadow"
+      style={{
+        left: `calc(${startPct}% - 18px)`,
+        transform: 'translateX(-50%)',
+        whiteSpace: 'nowrap',
+        zIndex: 10,
+      }}
+    >
+      {formatTime(start)}
+    </div>
+
+    {/* Bitiş etiketi */}
+    <div
+      className="absolute -top-1 text-[11px] px-2 py-1 rounded-md bg-stone-900 text-white shadow"
+      style={{
+        left: `calc(${endPct}% - 18px)`,
+        transform: 'translateX(-50%)',
+        whiteSpace: 'nowrap',
+        zIndex: 10,
+      }}
+    >
+      {formatTime(end)}
+    </div>
+
+    {/* Start range */}
+    <input
+      type="range"
+      min="0"
+      max={Math.max(0, duration - 0.5)}
+      step={STEP_FINE}
+      value={start}
+      onPointerDown={() => setActiveThumb('start')}
+      onChange={(e) => handleStart(parseFloat(e.target.value))}
+      className="w-full"
+      style={{ zIndex: activeThumb === 'start' ? 3 : 2 }}
+    />
+
+    {/* End range */}
+    <input
+      type="range"
+      min="0.5"
+      max={duration}
+      step={STEP_FINE}
+      value={end}
+      onPointerDown={() => setActiveThumb('end')}
+      onChange={(e) => handleEnd(parseFloat(e.target.value))}
+      className="w-full -mt-6"
+      style={{ zIndex: activeThumb === 'end' ? 3 : 2 }}
+    />
+  </div>
+
+  <div className="flex justify-between text-xs text-stone-500 mt-2">
+    <span>{formatTime(0)}</span>
+    <span>{formatTime(duration)}</span>
+  </div>
+</div>
+
 
           <div className="relative mt-2">
             <input
