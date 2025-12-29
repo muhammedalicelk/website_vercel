@@ -655,14 +655,14 @@ if (activeTab === 'internet') {
               <div className="space-y-4">
                 <Input
                   label="Ad Soyad *"
-                  value={formData.musteriAdi}
-                  onChange={(v) => setFormData({ ...formData, musteriAdi: v })}
+                 value={formData?.musteriAdi ?? ''}
+                  onChange={(v) => setFormData(p => ({ ...p, musteriAdi: v }))}
                   placeholder="Ad soyad giriniz."
                 />
                 <Input
                   label="Telefon *"
-                  value={formData.telefon}
-                  onChange={(v) => setFormData({ ...formData, telefon: v })}
+value={formData?.telefon ?? ''}
+onChange={(v) => setFormData(p => ({ ...p, telefon: v }))}
                   placeholder="0555 555 55 55"
                 />
               </div>
