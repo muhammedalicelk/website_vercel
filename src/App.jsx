@@ -879,6 +879,23 @@ function Input({ label, value, onChange, placeholder, type = "text" }) {
     </div>
   );
 }
+
+function TabButton({ active, onClick, children, icon }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={`flex-1 min-w-[140px] py-3 px-4 rounded-xl font-medium transition flex items-center justify-center gap-2 ${
+        active
+          ? 'bg-gradient-to-r from-amber-700 to-yellow-600 text-white shadow-lg'
+          : 'bg-amber-50 text-stone-700 hover:bg-amber-100'
+      }`}
+    >
+      {icon}
+      {children}
+    </button>
+  );
+}
 /* =========================================================
    UI HELPERS
    ========================================================= */
