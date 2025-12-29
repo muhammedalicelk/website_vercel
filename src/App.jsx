@@ -1,6 +1,9 @@
 import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { Music, Upload, Globe, User, Play, Pause, X, AlertCircle } from 'lucide-react';
 const AUDIO_ACCEPT = 'audio/*';
+const MAX_TOTAL_SEC = 310;
+const MIN_GAP = 0.05;
+const STEP_FINE = 0.005;
 /* =========================================================
    YT + SONGS
    ========================================================= */
@@ -247,7 +250,7 @@ const fileInputRef2 = useRef(null);
 const [formData, setFormData] = useState({
   musteriAdi: '',
   telefon: '',
-  hazirMuzikId: '',
+ hazirClips: [],
   yukluDosyalar: [],
   youtubeLink: '',
 
@@ -348,6 +351,11 @@ useEffect(() => {
 
  
  const submitDisabled = useMemo(() => {
+
+    const hazirTotalSec = useMemo(() => {
+  return (formData.hazirClips || []).reduce((sum, c) => sum + Math.max(0, (c.end - c.start)), 0);
+}, [formData.hazirClips]);
+
     // temel zorunlular
     if (!formData.musteriAdi.trim()) return true;
     if (!formData.telefon.trim()) return true;
@@ -472,11 +480,25 @@ for (const nf of newFiles) {
       return;
     }
 
-  if (activeTab === 'hazir') {
-  if (!formData.hazirMuzikId) {
-    alert('Lütfen bir müzik seçiniz.');
+if (activeTab === 'hazir') {
+  const clips = formData.hazirClips || [];
+  if (clips.length === 0) {
+    alert('Lütfen en az bir hazır müzik ekleyin!');
     return;
   }
+
+  const total = clips.reduce((s, c) => s + Math.max(0, c.end - c.start), 0);
+  if (total > MAX_TOTAL_SEC + 0.01) {
+    alert('Toplam süre 310 sn’yi aşıyor. Lütfen kısaltın.');
+    return;
+  }
+
+  const missing = clips.find((c) => c.toyOk === false);
+  if (missing) {
+    alert('Bazı hazır müziklerde 16 kHz önizleme dosyası yok. Lütfen düzeltin veya başka parça seçin.');
+    return;
+  }
+}
 
   if (hazirToyOk === false) {
     alert(
@@ -563,18 +585,27 @@ if (activeTab === 'internet') {
 
     try {
       const resp = await fetch('/api/order', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          musteriAdi: formData.musteriAdi,
-          telefon: formData.telefon,
-          activeTab,
-          hazirMuzikTitle: selectedSong?.title || '',
-          youtubeLink: formData.youtubeLink || '',
-          internetVideoId: internetVideoId || '',
-          yukluDosyaAdlari: (formData.yukluDosyalar || []).map((f) => f.name),
-        }),
-      });
+  method: 'POST',
+  headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify({
+    musteriAdi: formData.musteriAdi,
+    telefon: formData.telefon,
+    activeTab,
+
+    // 👇 HAZIR MÜZİKLER (backend için sadeleştirilmiş)
+    hazirClips: (formData.hazirClips || []).map(c => ({
+      title: c.title,
+      youtubeId: c.youtubeId,
+      start: c.start,
+      end: c.end,
+    })),
+
+    // diğerleri
+    youtubeLink: formData.youtubeLink || '',
+    internetVideoId: internetVideoId || '',
+    yukluDosyaAdlari: (formData.yukluDosyalar || []).map(f => f.name),
+  }),
+});
 
       const j = await resp.json();
       if (!j.ok) {
@@ -690,13 +721,17 @@ if (activeTab === 'internet') {
 
 <div className="bg-amber-50/30 rounded-xl p-6 border border-amber-100">
   {/* HAZIR */}
+   {activeTab === 'hazir' && (
+  <div className="mb-3 text-xs text-stone-700">
+    Toplam: <b>{Math.round(hazirTotalSec)} sn</b> • Kalan: <b>{Math.max(0, MAX_TOTAL_SEC - hazirTotalSec)} sn</b>
+  </div>
+)}
   {activeTab === 'hazir' && (
-    <HazirMuzikPicker
-      formData={formData}
-      setFormData={setFormData}
-      onToyPreviewCheck={setHazirToyOk}
-    />
-  )}
+  <HazirMuzikMulti
+    formData={formData}
+    setFormData={setFormData}
+  />
+)}
 
   {/* DOSYA */}
   {activeTab === 'yukle' && (
@@ -855,6 +890,355 @@ if (activeTab === 'internet') {
 /* =========================================================
    UI HELPERS
    ========================================================= */
+
+function HazirMuzikMulti({ formData, setFormData }) {
+  const [query, setQuery] = useState('');
+  const [selectedSongId, setSelectedSongId] = useState('');
+
+  const filtered = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    if (!q) return SONGS;
+    return SONGS.filter((s) => {
+      const inTitle = s.title.toLowerCase().includes(q);
+      const inTags = (s.tags || []).some((t) => t.toLowerCase().includes(q));
+      return inTitle || inTags;
+    });
+  }, [query]);
+
+  const totalSec = useMemo(() => {
+    return (formData.hazirClips || []).reduce((sum, c) => sum + Math.max(0, c.end - c.start), 0);
+  }, [formData.hazirClips]);
+
+  const remaining = Math.max(0, MAX_TOTAL_SEC - totalSec);
+
+  const selected = SONGS.find((s) => s.id === selectedSongId);
+
+  // mp3 duration oku
+  const readDuration = (url) =>
+    new Promise((resolve) => {
+      const a = new Audio();
+      a.preload = 'metadata';
+      a.src = url;
+      a.onloadedmetadata = () => resolve(a.duration || 0);
+      a.onerror = () => resolve(0);
+      a.load();
+    });
+
+  const headExists = async (url) => {
+    try {
+      const r = await fetch(url, { method: 'HEAD', cache: 'no-store' });
+      return !!r.ok;
+    } catch {
+      return false;
+    }
+  };
+
+  const addClip = async () => {
+    if (!selected) return;
+
+    const toyUrl = `/previews16k/${selected.id}.mp3`;
+
+    // 1) preview var mı?
+    const ok = await headExists(toyUrl);
+
+    // 2) duration oku (yoksa 0)
+    const dur = await readDuration(toyUrl);
+
+    // 3) yeni clip default aralığı:
+    // - yeni clip, kalan kadar yer varsa o kadar (veya tüm şarkı, hangisi küçükse)
+    // - kalan yoksa 1sn ekle (kullanıcı isterse diğerlerini kısaltıp bunu büyütür)
+    const maxLenForNew = remaining > 0 ? remaining : 1;
+    const end = Math.min(dur || maxLenForNew, maxLenForNew);
+
+    const clip = {
+      clipId: makeId(),
+      songId: selected.id,
+      title: selected.title,
+      youtubeId: selected.youtubeId,
+      toyUrl,
+      songDur: dur || 0,
+      start: 0,
+      end: Math.max(0.5, end), // en az 0.5 sn
+      toyOk: ok,
+      tags: selected.tags || [],
+    };
+
+    setFormData((p) => ({
+      ...p,
+      hazirClips: [...(p.hazirClips || []), clip],
+    }));
+  };
+
+  const removeClip = (clipId) => {
+    setFormData((p) => ({
+      ...p,
+      hazirClips: (p.hazirClips || []).filter((c) => c.clipId !== clipId),
+    }));
+  };
+
+  // Kırpma update: total 310 aşarsa sadece o clip clamp’lensin (diğerleri sabit)
+  const updateClip = (clipId, updates) => {
+    setFormData((p) => {
+      const clips = p.hazirClips || [];
+      const idx = clips.findIndex((c) => c.clipId === clipId);
+      if (idx < 0) return p;
+
+      const next = { ...clips[idx], ...updates };
+      const othersTotal = clips.reduce((sum, c, i) => {
+        if (i === idx) return sum;
+        return sum + Math.max(0, c.end - c.start);
+      }, 0);
+
+      const maxLen = Math.max(0.5, MAX_TOTAL_SEC - othersTotal);
+      const minEnd = next.start + 0.5;
+      const hardMaxEnd = (next.songDur && next.songDur > 0) ? next.songDur : Infinity;
+
+      // end: hem şarkı süresini hem maxLen’i aşmasın
+      const allowedEnd = Math.min(next.start + maxLen, hardMaxEnd);
+      if (next.end > allowedEnd) next.end = allowedEnd;
+      if (next.end < minEnd) next.end = minEnd;
+
+      const newClips = clips.slice();
+      newClips[idx] = next;
+      return { ...p, hazirClips: newClips };
+    });
+  };
+
+  return (
+    <div>
+      <div className="mb-3 text-xs text-stone-700">
+        Toplam: <b>{Math.round(totalSec)} sn</b> • Kalan: <b>{Math.max(0, Math.round(MAX_TOTAL_SEC - totalSec))} sn</b>
+      </div>
+
+      <p className="text-sm text-stone-700 mb-3">Hazır müzik ekle (çoklu seçim):</p>
+
+      <input
+        type="text"
+        value={query}
+        onChange={(e) => setQuery(e.target.value)}
+        className="w-full px-4 py-3 border-2 border-amber-200 rounded-xl focus:border-amber-600 focus:outline-none transition mb-3 bg-white"
+        placeholder="Ara: Şarkı İsmi / Tür / Dil"
+      />
+
+      <div className="flex gap-2">
+        <select
+          value={selectedSongId}
+          onChange={(e) => setSelectedSongId(e.target.value)}
+          className="flex-1 px-4 py-3 border-2 border-amber-200 rounded-xl focus:border-amber-600 focus:outline-none transition bg-white"
+        >
+          <option value="">— Müzik seç —</option>
+          {filtered.map((s) => (
+            <option key={s.id} value={s.id}>
+              {s.title}
+            </option>
+          ))}
+        </select>
+
+        <button
+          type="button"
+          onClick={addClip}
+          disabled={!selectedSongId}
+          className={`px-4 rounded-xl font-semibold ${
+            selectedSongId ? 'bg-amber-700 text-white' : 'bg-stone-300 text-stone-500'
+          }`}
+        >
+          Ekle
+        </button>
+      </div>
+
+      {filtered.length === 0 && (
+        <div className="mt-3 text-sm text-amber-800">Sonuç yok. Arama kelimesini değiştir.</div>
+      )}
+
+      {/* Seçili clip listesi */}
+      {(formData.hazirClips || []).length > 0 && (
+        <div className="mt-5 space-y-4">
+          <div className="text-sm font-semibold text-stone-800">
+            Seçilen Parçalar (kırpılabilir):
+          </div>
+
+          {(formData.hazirClips || []).map((c) => (
+            <HazirClipTrimmer
+              key={c.clipId}
+              clip={c}
+              onRemove={() => removeClip(c.clipId)}
+              onUpdate={(u) => updateClip(c.clipId, u)}
+            />
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+function HazirClipTrimmer({ clip, onRemove, onUpdate }) {
+  const audioRef = useRef(null);
+  const [isPlaying, setIsPlaying] = useState(false);
+  const [activeThumb, setActiveThumb] = useState(null);
+
+  const duration = clip.songDur || 0;
+  const start = clip.start || 0;
+  const end = clip.end || Math.max(0.5, start + 0.5);
+
+  const formatTime = (s) => {
+    const m = Math.floor(s / 60);
+    const sec = Math.floor(s % 60);
+    return `${m}:${String(sec).padStart(2, '0')}`;
+  };
+
+  useEffect(() => {
+    const a = audioRef.current;
+    if (!a) return;
+
+    const onTime = () => {
+      if (!isPlaying) return;
+      const t = a.currentTime;
+      if (t < start) a.currentTime = start;
+      if (t >= end) {
+        a.pause();
+        a.currentTime = start;
+        setIsPlaying(false);
+      }
+    };
+
+    const onEnded = () => {
+      setIsPlaying(false);
+      if (audioRef.current) audioRef.current.currentTime = start;
+    };
+
+    a.addEventListener('timeupdate', onTime);
+    a.addEventListener('ended', onEnded);
+    return () => {
+      a.removeEventListener('timeupdate', onTime);
+      a.removeEventListener('ended', onEnded);
+    };
+  }, [isPlaying, start, end]);
+
+  const togglePlay = async () => {
+    const a = audioRef.current;
+    if (!a) return;
+
+    if (isPlaying) {
+      a.pause();
+      setIsPlaying(false);
+      return;
+    }
+
+    try {
+      a.currentTime = start;
+      await a.play();
+      setIsPlaying(true);
+    } catch {
+      setIsPlaying(false);
+      alert('Tarayıcı ses çalmayı engelledi. Play’e tekrar bas.');
+    }
+  };
+
+  const selectedDur = Math.max(0, end - start);
+  const startPct = duration ? (start / duration) * 100 : 0;
+  const endPct = duration ? (end / duration) * 100 : 0;
+
+  const handleStart = (val) => {
+    const nextStart = Math.min(val, end - 0.5);
+    onUpdate({ start: Math.max(0, nextStart) });
+  };
+
+  const handleEnd = (val) => {
+    const nextEnd = Math.max(val, start + 0.5);
+    onUpdate({ end: nextEnd });
+  };
+
+  return (
+    <div className="bg-white border border-amber-200 rounded-xl p-4">
+      <audio ref={audioRef} src={clip.toyUrl} preload="metadata" />
+
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <div className="text-sm font-semibold text-stone-800 truncate">
+            {clip.title}
+          </div>
+          <div className="text-xs text-stone-500">
+            Seçili: <b>{formatTime(selectedDur)}</b>
+            {duration ? <> • Toplam: <b>{formatTime(duration)}</b></> : null}
+          </div>
+
+          {!clip.toyOk && (
+            <div className="mt-2 text-xs text-red-700">
+              ⚠️ 16 kHz önizleme yok: <b>{clip.toyUrl}</b>
+            </div>
+          )}
+        </div>
+
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={togglePlay}
+            className="px-3 py-2 rounded-lg bg-amber-100 hover:bg-amber-200 text-amber-900 text-sm"
+          >
+            {isPlaying ? 'Dur' : 'Dinle'}
+          </button>
+
+          <button
+            type="button"
+            onClick={onRemove}
+            className="px-3 py-2 rounded-lg bg-red-100 hover:bg-red-200 text-red-700 text-sm"
+          >
+            Sil
+          </button>
+        </div>
+      </div>
+
+      {/* Sliderlar */}
+      {duration > 0 && (
+        <div className="mt-4">
+          <div
+            className="h-2 rounded-lg bg-stone-200"
+            style={{
+              background: `linear-gradient(to right,
+                #e7e5e4 0%,
+                #e7e5e4 ${startPct}%,
+                #b45309 ${startPct}%,
+                #b45309 ${endPct}%,
+                #e7e5e4 ${endPct}%,
+                #e7e5e4 100%)`,
+            }}
+          />
+
+          <div className="relative mt-2">
+            <input
+              type="range"
+              min="0"
+              max={Math.max(0, duration - 0.5)}
+              step={STEP_FINE}
+              value={start}
+              onPointerDown={() => setActiveThumb('start')}
+              onChange={(e) => handleStart(parseFloat(e.target.value))}
+              className="w-full"
+              style={{ zIndex: activeThumb === 'start' ? 3 : 2 }}
+            />
+
+            <input
+              type="range"
+              min="0.5"
+              max={duration}
+              step={STEP_FINE}
+              value={end}
+              onPointerDown={() => setActiveThumb('end')}
+              onChange={(e) => handleEnd(parseFloat(e.target.value))}
+              className="w-full -mt-6"
+              style={{ zIndex: activeThumb === 'end' ? 3 : 2 }}
+            />
+          </div>
+
+          <div className="flex justify-between text-xs text-stone-500 mt-2">
+            <span>{formatTime(0)}</span>
+            <span>{formatTime(duration)}</span>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 function TabButton({ active, onClick, children, icon }) {
   return (
     <button
