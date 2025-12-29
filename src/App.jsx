@@ -863,7 +863,22 @@ onChange={(v) => setFormData(p => ({ ...p, telefon: v }))}
     </>
   );
 }
-
+function Input({ label, value, onChange, placeholder, type = "text" }) {
+  return (
+    <div>
+      <label className="block text-sm font-medium text-stone-700 mb-2">
+        {label}
+      </label>
+      <input
+        type={type}
+        value={value ?? ""}
+        onChange={(e) => onChange?.(e.target.value)}
+        className="w-full px-4 py-3 border-2 border-amber-200 rounded-xl focus:border-amber-600 focus:outline-none transition bg-white"
+        placeholder={placeholder}
+      />
+    </div>
+  );
+}
 /* =========================================================
    UI HELPERS
    ========================================================= */
