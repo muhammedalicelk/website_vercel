@@ -1096,6 +1096,7 @@ return (
         </div>
       )}
     </div>
+     </>
   );
 }
 function HazirClipTrimmer({ clip, onRemove, onUpdate }) {
@@ -1134,7 +1135,6 @@ function HazirClipTrimmer({ clip, onRemove, onUpdate }) {
     <div className="bg-white border border-amber-200 rounded-xl p-4">
       <audio ref={audioRef} src={clip.toyUrl} preload="metadata" />
 
-      {/* ... üstteki UI aynı kalsın ... */}
 
       {duration > 0 && (
         <div className="mt-4">
