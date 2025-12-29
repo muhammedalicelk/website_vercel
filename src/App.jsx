@@ -1153,7 +1153,27 @@ function HazirClipTrimmer({ clip, onRemove, onUpdate }) {
   };
 
   const selectedDur = Math.max(0, end - start);
+useEffect(() => {
+  const a = audioRef.current;
+  if (!a) return;
 
+  const onMeta = () => {
+    const dur = a.duration || 0;
+    if (!dur || !Number.isFinite(dur)) return;
+
+    // duration'ı state'e yaz (clip'e)
+    if (!clip.songDur || clip.songDur <= 0) {
+      onUpdate({
+        songDur: dur,
+        start: Math.min(clip.start || 0, Math.max(0, dur - 0.5)),
+        end: Math.min(clip.end || dur, dur),
+      });
+    }
+  };
+
+  a.addEventListener('loadedmetadata', onMeta);
+  return () => a.removeEventListener('loadedmetadata', onMeta);
+}, [clip.clipId]);
   const handleStart = (val) => {
     const nextStart = Math.min(val, end - 0.5);
     onUpdate({ start: Math.max(0, nextStart) });
@@ -1170,7 +1190,7 @@ function HazirClipTrimmer({ clip, onRemove, onUpdate }) {
   {clip.title}
 </div>
     <div className="bg-white border border-amber-200 rounded-xl p-4">
-      <audio ref={audioRef} src={clip.toyUrl} preload="metadata" />
+<audio key={clip.clipId} ref={audioRef} src={clip.toyUrl} preload="metadata" />
 
 
       {duration > 0 && (
