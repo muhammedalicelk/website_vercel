@@ -1162,7 +1162,7 @@ function HazirClipTrimmer({ clip, onRemove, onUpdate }) {
   };
 
   return (
-     
+      <>
      <div className="text-sm font-semibold text-stone-800 truncate">
   {clip.title}
 </div>
@@ -1232,8 +1232,10 @@ background: `linear-gradient(to right,
           </div>
         </div>
       )}
+      
     </div>
-  );
+    </>
+  );    
 }
 function YouTubeRangePicker({ ytDurationSec, formData, setFormData }) {
   // Video süresi varsa...
