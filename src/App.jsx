@@ -1168,8 +1168,8 @@ const endPct   = duration ? clamp01((end   / duration) * 100) : 0;
         </div>
       </div>
 
-      {/* Sliderlar */}
-    {duration > 0 && (
+ {/* Sliderlar */}
+{duration > 0 && (
   <div className="mt-4">
     {/* Track */}
     <div
@@ -1235,75 +1235,6 @@ const endPct   = duration ? clamp01((end   / duration) * 100) : 0;
   </div>
 )}
 
-
-
-          <div className="relative mt-2">
-            <input
-              type="range"
-              min="0"
-              max={Math.max(0, duration - 0.5)}
-              step={STEP_FINE}
-              value={start}
-              onPointerDown={() => setActiveThumb('start')}
-              onChange={(e) => handleStart(parseFloat(e.target.value))}
-              className="w-full"
-              style={{ zIndex: activeThumb === 'start' ? 3 : 2 }}
-            />
-
-            <input
-              type="range"
-              min="0.5"
-              max={duration}
-              step={STEP_FINE}
-              value={end}
-              onPointerDown={() => setActiveThumb('end')}
-              onChange={(e) => handleEnd(parseFloat(e.target.value))}
-              className="w-full -mt-6"
-              style={{ zIndex: activeThumb === 'end' ? 3 : 2 }}
-            />
-          </div>
-
-          <div className="flex justify-between text-xs text-stone-500 mt-2">
-            <span>{formatTime(0)}</span>
-            <span>{formatTime(duration)}</span>
-          </div>
-        </div>
-      )}
-    </div>
-  );
-}
-
-function TabButton({ active, onClick, children, icon }) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className={`flex-1 min-w-[140px] py-3 px-4 rounded-xl font-medium transition flex items-center justify-center gap-2 ${
-        active
-          ? 'bg-gradient-to-r from-amber-700 to-yellow-600 text-white shadow-lg'
-          : 'bg-amber-50 text-stone-700 hover:bg-amber-100'
-      }`}
-    >
-      {icon}
-      {children}
-    </button>
-  );
-}
-
-function Input({ label, value, onChange, placeholder }) {
-  return (
-    <div>
-      <label className="block text-sm font-medium text-stone-700 mb-2">{label}</label>
-      <input
-        type="text"
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        className="w-full px-4 py-3 border-2 border-amber-200 rounded-xl focus:border-amber-600 focus:outline-none transition bg-white"
-        placeholder={placeholder}
-      />
-    </div>
-  );
-}
 
 function YouTubeRangePicker({ ytDurationSec, formData, setFormData }) {
   // Video süresi varsa: üst sınır video süresi
