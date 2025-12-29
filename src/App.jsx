@@ -1055,63 +1055,16 @@ function HazirClipTrimmer({ clip, onRemove, onUpdate }) {
   const duration = clip.songDur || 0;
   const start = clip.start || 0;
   const end = clip.end || Math.max(0.5, start + 0.5);
-const clamp01 = (x) => Math.max(0, Math.min(100, x));
 
+  // 🔥 clamp01 ismini değiştir (duplicate riskini sıfırlar)
+  const clampPct = (x) => Math.max(0, Math.min(100, x));
+  const startPct = duration ? clampPct((start / duration) * 100) : 0;
+  const endPct   = duration ? clampPct((end   / duration) * 100) : 0;
 
-const startPct = duration ? clamp01((start / duration) * 100) : 0;
-const endPct   = duration ? clamp01((end   / duration) * 100) : 0;
   const formatTime = (s) => {
     const m = Math.floor(s / 60);
     const sec = Math.floor(s % 60);
     return `${m}:${String(sec).padStart(2, '0')}`;
-  };
-
-  useEffect(() => {
-    const a = audioRef.current;
-    if (!a) return;
-
-    const onTime = () => {
-      if (!isPlaying) return;
-      const t = a.currentTime;
-      if (t < start) a.currentTime = start;
-      if (t >= end) {
-        a.pause();
-        a.currentTime = start;
-        setIsPlaying(false);
-      }
-    };
-
-    const onEnded = () => {
-      setIsPlaying(false);
-      if (audioRef.current) audioRef.current.currentTime = start;
-    };
-
-    a.addEventListener('timeupdate', onTime);
-    a.addEventListener('ended', onEnded);
-    return () => {
-      a.removeEventListener('timeupdate', onTime);
-      a.removeEventListener('ended', onEnded);
-    };
-  }, [isPlaying, start, end]);
-
-  const togglePlay = async () => {
-    const a = audioRef.current;
-    if (!a) return;
-
-    if (isPlaying) {
-      a.pause();
-      setIsPlaying(false);
-      return;
-    }
-
-    try {
-      a.currentTime = start;
-      await a.play();
-      setIsPlaying(true);
-    } catch {
-      setIsPlaying(false);
-      alert('Tarayıcı ses çalmayı engelledi. Play’e tekrar bas.');
-    }
   };
 
   const selectedDur = Math.max(0, end - start);
@@ -1130,110 +1083,72 @@ const endPct   = duration ? clamp01((end   / duration) * 100) : 0;
     <div className="bg-white border border-amber-200 rounded-xl p-4">
       <audio ref={audioRef} src={clip.toyUrl} preload="metadata" />
 
-      <div className="flex items-start justify-between gap-3">
-        <div className="min-w-0">
-          <div className="text-sm font-semibold text-stone-800 truncate">
-            {clip.title}
-          </div>
-          <div className="text-xs text-stone-500">
-            Seçili: <b>{formatTime(selectedDur)}</b>
-            {duration ? <> • Toplam: <b>{formatTime(duration)}</b></> : null}
-          </div>
+      {/* ... üstteki UI aynı kalsın ... */}
 
-          {!clip.toyOk && (
-            <div className="mt-2 text-xs text-red-700">
-              ⚠️ 16 kHz önizleme yok: <b>{clip.toyUrl}</b>
+      {duration > 0 && (
+        <div className="mt-4">
+          <div
+            className="h-2 rounded-lg bg-stone-200"
+            style={{
+              background: `linear-gradient(to right,
+                #e7e5e4 0%,
+                #e7e5e4 ${startPct}%,
+                #2563eb ${startPct}%,
+                #2563eb ${endPct}%,
+                #e7e5e4 ${endPct}%,
+                #e7e5e4 100%)`,
+            }}
+          />
+
+          <div className="relative mt-2 pt-7">
+            <div
+              className="absolute -top-1 text-[11px] px-2 py-1 rounded-md bg-blue-600 text-white shadow"
+              style={{ left: `${startPct}%`, transform: 'translateX(-50%)' }}
+            >
+              {formatTime(start)}
             </div>
-          )}
+
+            <div
+              className="absolute -top-1 text-[11px] px-2 py-1 rounded-md bg-blue-800 text-white shadow"
+              style={{ left: `${endPct}%`, transform: 'translateX(-50%)' }}
+            >
+              {formatTime(end)}
+            </div>
+
+            <input
+              type="range"
+              min="0"
+              max={Math.max(0, duration - 0.5)}
+              step={STEP_FINE}
+              value={start}
+              onPointerDown={() => setActiveThumb('start')}
+              onChange={(e) => handleStart(parseFloat(e.target.value))}
+              className="w-full"
+              style={{ zIndex: activeThumb === 'start' ? 3 : 2 }}
+            />
+
+            <input
+              type="range"
+              min="0.5"
+              max={duration}
+              step={STEP_FINE}
+              value={end}
+              onPointerDown={() => setActiveThumb('end')}
+              onChange={(e) => handleEnd(parseFloat(e.target.value))}
+              className="w-full -mt-6"
+              style={{ zIndex: activeThumb === 'end' ? 3 : 2 }}
+            />
+          </div>
+
+          <div className="flex justify-between text-xs text-stone-500 mt-2">
+            <span>{formatTime(0)}</span>
+            <span>{formatTime(duration)}</span>
+          </div>
         </div>
-
-        <div className="flex items-center gap-2">
-          <button
-            type="button"
-            onClick={togglePlay}
-            className="px-3 py-2 rounded-lg bg-amber-100 hover:bg-amber-200 text-amber-900 text-sm"
-          >
-            {isPlaying ? 'Dur' : 'Dinle'}
-          </button>
-
-          <button
-            type="button"
-            onClick={onRemove}
-            className="px-3 py-2 rounded-lg bg-red-100 hover:bg-red-200 text-red-700 text-sm"
-          >
-            Sil
-          </button>
-        </div>
-      </div>
-
- {/* Sliderlar */}
-{duration > 0 && (
-  <div className="mt-4">
-    {/* Track */}
-    <div
-      className="h-2 rounded-lg bg-stone-200"
-      style={{
-        background: `linear-gradient(to right,
-          #e7e5e4 0%,
-          #e7e5e4 ${startPct}%,
-          #2563eb ${startPct}%,
-          #2563eb ${endPct}%,
-          #e7e5e4 ${endPct}%,
-          #e7e5e4 100%)`,
-      }}
-    />
-
-    {/* Sliders + labels */}
-    <div className="relative mt-2 pt-7">
-      {/* Start label */}
-      <div
-        className="absolute -top-1 text-[11px] px-2 py-1 rounded-md bg-blue-600 text-white shadow"
-        style={{ left: `${startPct}%`, transform: 'translateX(-50%)' }}
-      >
-        {formatTime(start)}
-      </div>
-
-      {/* End label */}
-      <div
-        className="absolute -top-1 text-[11px] px-2 py-1 rounded-md bg-blue-800 text-white shadow"
-        style={{ left: `${endPct}%`, transform: 'translateX(-50%)' }}
-      >
-        {formatTime(end)}
-      </div>
-
-      <input
-        type="range"
-        min="0"
-        max={Math.max(0, duration - 0.5)}
-        step={STEP_FINE}
-        value={start}
-        onPointerDown={() => setActiveThumb('start')}
-        onChange={(e) => handleStart(parseFloat(e.target.value))}
-        className="w-full"
-        style={{ zIndex: activeThumb === 'start' ? 3 : 2 }}
-      />
-
-      <input
-        type="range"
-        min="0.5"
-        max={duration}
-        step={STEP_FINE}
-        value={end}
-        onPointerDown={() => setActiveThumb('end')}
-        onChange={(e) => handleEnd(parseFloat(e.target.value))}
-        className="w-full -mt-6"
-        style={{ zIndex: activeThumb === 'end' ? 3 : 2 }}
-      />
+      )}
     </div>
-
-    <div className="flex justify-between text-xs text-stone-500 mt-2">
-      <span>{formatTime(0)}</span>
-      <span>{formatTime(duration)}</span>
-    </div>
-  </div>
-)}
-
-
+  );
+}
 function YouTubeRangePicker({ ytDurationSec, formData, setFormData }) {
   // Video süresi varsa...
   const FALLBACK_MAX = 2 * 60 * 60;
