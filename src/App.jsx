@@ -1151,14 +1151,15 @@ background: `linear-gradient(to right,
 
           <div className="relative mt-2 pt-7">
             <div
-              className="absolute -top-1 text-[11px] px-2 py-1 rounded-md bg-blue-600 text-white shadow"
+             className="absolute -top-1 text-[11px] px-2 py-1 rounded-md bg-amber-700 text-white shadow"
+
               style={{ left: `${startPct}%`, transform: 'translateX(-50%)' }}
             >
               {formatTime(start)}
             </div>
 
             <div
-              className="absolute -top-1 text-[11px] px-2 py-1 rounded-md bg-blue-800 text-white shadow"
+              className="absolute -top-1 text-[11px] px-2 py-1 rounded-md bg-amber-800 text-white shadow"
               style={{ left: `${endPct}%`, transform: 'translateX(-50%)' }}
             >
               {formatTime(end)}
