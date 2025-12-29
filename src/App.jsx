@@ -1014,90 +1014,70 @@ function HazirMuzikMulti({ formData, setFormData }) {
   };
 
 return (
-  <>
-    <div className="flex items-start justify-between gap-3">
-      <div className="min-w-0">
-        <div className="text-sm font-semibold text-stone-800 truncate">
-          {clip.title}
-        </div>
-
-        <div className="text-xs text-stone-500">
-          Seçili: <b>{formatTime(selectedDur)}</b>
-          {duration ? <> • Toplam: <b>{formatTime(duration)}</b></> : null}
-        </div>
-      </div>
-
-      <div className="flex items-center gap-2">
-        {/* buraya butonların */}
-      </div>
+  <div>
+    <div className="mb-3 text-xs text-stone-700">
+      Toplam: <b>{Math.round(totalSec)} sn</b> • Kalan:{' '}
+      <b>{Math.max(0, Math.round(MAX_TOTAL_SEC - totalSec))} sn</b>
     </div>
 
-    <div>
-      <div className="mb-3 text-xs text-stone-700">
-        Toplam: <b>{Math.round(totalSec)} sn</b> • Kalan:{' '}
-        <b>{Math.max(0, Math.round(MAX_TOTAL_SEC - totalSec))} sn</b>
-      </div>
+    <p className="text-sm text-stone-700 mb-3">Hazır müzik ekle (çoklu seçim):</p>
 
-      <p className="text-sm text-stone-700 mb-3">Hazır müzik ekle (çoklu seçim):</p>
+    <input
+      type="text"
+      value={query}
+      onChange={(e) => setQuery(e.target.value)}
+      className="w-full px-4 py-3 border-2 border-amber-200 rounded-xl focus:border-amber-600 focus:outline-none transition mb-3 bg-white"
+      placeholder="Ara: Şarkı İsmi / Tür / Dil"
+    />
 
-      <input
-        type="text"
-        value={query}
-        onChange={(e) => setQuery(e.target.value)}
-        className="w-full px-4 py-3 border-2 border-amber-200 rounded-xl focus:border-amber-600 focus:outline-none transition mb-3 bg-white"
-        placeholder="Ara: Şarkı İsmi / Tür / Dil"
-      />
+    <div className="flex gap-2">
+      <select
+        value={selectedSongId}
+        onChange={(e) => setSelectedSongId(e.target.value)}
+        className="flex-1 px-4 py-3 border-2 border-amber-200 rounded-xl focus:border-amber-600 focus:outline-none transition bg-white"
+      >
+        <option value="">— Müzik seç —</option>
+        {filtered.map((s) => (
+          <option key={s.id} value={s.id}>
+            {s.title}
+          </option>
+        ))}
+      </select>
 
-      <div className="flex gap-2">
-        <select
-          value={selectedSongId}
-          onChange={(e) => setSelectedSongId(e.target.value)}
-          className="flex-1 px-4 py-3 border-2 border-amber-200 rounded-xl focus:border-amber-600 focus:outline-none transition bg-white"
-        >
-          <option value="">— Müzik seç —</option>
-          {filtered.map((s) => (
-            <option key={s.id} value={s.id}>
-              {s.title}
-            </option>
-          ))}
-        </select>
-
-        <button
-          type="button"
-          onClick={addClip}
-          disabled={!selectedSongId}
-          className={`px-4 rounded-xl font-semibold ${
-            selectedSongId ? 'bg-amber-700 text-white' : 'bg-stone-300 text-stone-500'
-          }`}
-        >
-          Ekle
-        </button>
-      </div>
-
-      {filtered.length === 0 && (
-        <div className="mt-3 text-sm text-amber-800">Sonuç yok. Arama kelimesini değiştir.</div>
-      )}
-
-      {/* Seçili clip listesi */}
-      {(formData.hazirClips || []).length > 0 && (
-        <div className="mt-5 space-y-4">
-          <div className="text-sm font-semibold text-stone-800">
-            Seçilen Parçalar (kırpılabilir):
-          </div>
-
-          {(formData.hazirClips || []).map((c) => (
-            <HazirClipTrimmer
-              key={c.clipId}
-              clip={c}
-              onRemove={() => removeClip(c.clipId)}
-              onUpdate={(u) => updateClip(c.clipId, u)}
-            />
-          ))}
-        </div>
-      )}
+      <button
+        type="button"
+        onClick={addClip}
+        disabled={!selectedSongId}
+        className={`px-4 rounded-xl font-semibold ${
+          selectedSongId ? 'bg-amber-700 text-white' : 'bg-stone-300 text-stone-500'
+        }`}
+      >
+        Ekle
+      </button>
     </div>
-     </>
-  );
+
+    {filtered.length === 0 && (
+      <div className="mt-3 text-sm text-amber-800">Sonuç yok. Arama kelimesini değiştir.</div>
+    )}
+
+    {(formData.hazirClips || []).length > 0 && (
+      <div className="mt-5 space-y-4">
+        <div className="text-sm font-semibold text-stone-800">
+          Seçilen Parçalar (kırpılabilir):
+        </div>
+
+        {(formData.hazirClips || []).map((c) => (
+          <HazirClipTrimmer
+            key={c.clipId}
+            clip={c}
+            onRemove={() => removeClip(c.clipId)}
+            onUpdate={(u) => updateClip(c.clipId, u)}
+          />
+        ))}
+      </div>
+    )}
+  </div>
+);
 }
 function HazirClipTrimmer({ clip, onRemove, onUpdate }) {
   const audioRef = useRef(null);
