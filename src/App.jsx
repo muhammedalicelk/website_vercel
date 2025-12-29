@@ -48,6 +48,46 @@
     border:2px solid #92400e;
     cursor:pointer;
   }
+  .hazirRange {
+  -webkit-appearance: none;
+  appearance: none;
+  background: transparent;
+}
+
+/* TRACK */
+.hazirRange::-webkit-slider-runnable-track {
+  height: 6px;
+  background: #e7e5e4; /* stone-200 */
+  border-radius: 999px;
+}
+
+.hazirRange::-moz-range-track {
+  height: 6px;
+  background: #e7e5e4;
+  border-radius: 999px;
+}
+
+/* THUMB */
+.hazirRange::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  margin-top: -6px;
+  width: 18px;
+  height: 18px;
+  background: #b45309; /* amber-700 */
+  border-radius: 50%;
+  border: 2px solid #92400e; /* amber-800 */
+  cursor: pointer;
+}
+
+.hazirRange::-moz-range-thumb {
+  width: 18px;
+  height: 18px;
+  background: #b45309;
+  border-radius: 50%;
+  border: 2px solid #92400e;
+  cursor: pointer;
+}
 `}</style>
 
 import React, { useState, useRef, useEffect, useMemo } from 'react';
