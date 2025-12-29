@@ -1132,56 +1132,7 @@ return (
 );
 }
 function HazirClipTrimmer({ clip, onRemove, onUpdate }) {
-   <style>{`
-  /* === HAZIR CLIP TRIM RANGE (maviyi öldür) === */
-  .hazirRange {
-    -webkit-appearance: none;
-    appearance: none;
-    width: 100%;
-    height: 26px;
-    background: transparent;
-    outline: none;
-  }
 
-  /* Track (arka çizgi) */
-  .hazirRange::-webkit-slider-runnable-track {
-    height: 6px;
-    border-radius: 9999px;
-    background: #d6d3d1; /* stone-300 */
-  }
-  .hazirRange::-moz-range-track {
-    height: 6px;
-    border-radius: 9999px;
-    background: #d6d3d1;
-  }
-
-  /* Thumb (top) */
-  .hazirRange::-webkit-slider-thumb {
-    -webkit-appearance: none;
-    appearance: none;
-    margin-top: -5px;
-    width: 16px;
-    height: 16px;
-    border-radius: 9999px;
-    background: #ffffff;
-    border: 3px solid #b45309; /* amber-700 */
-    box-shadow: 0 1px 3px rgba(0,0,0,0.25);
-    cursor: grab;
-  }
-  .hazirRange::-moz-range-thumb {
-    width: 16px;
-    height: 16px;
-    border-radius: 9999px;
-    background: #ffffff;
-    border: 3px solid #b45309;
-    box-shadow: 0 1px 3px rgba(0,0,0,0.25);
-    cursor: grab;
-  }
-
-  /* Focus mavi glow kapat */
-  .hazirRange:focus { outline: none; }
-  .hazirRange:focus-visible { outline: none; }
-`}</style>
   const audioRef = useRef(null);
   const [isPlaying, setIsPlaying] = useState(false);
   const [activeThumb, setActiveThumb] = useState(null);
