@@ -1014,6 +1014,23 @@ function HazirMuzikMulti({ formData, setFormData }) {
   };
 
   return (
+     <div className="flex items-start justify-between gap-3">
+  <div className="min-w-0">
+    <div className="text-sm font-semibold text-stone-800 truncate">
+      {clip.title}
+    </div>
+
+    <div className="text-xs text-stone-500">
+      Seçili: <b>{formatTime(selectedDur)}</b>
+      {duration ? <> • Toplam: <b>{formatTime(duration)}</b></> : null}
+    </div>
+  </div>
+
+  <div className="flex items-center gap-2">
+    ...
+  </div>
+</div>
+     
     <div>
       <div className="mb-3 text-xs text-stone-700">
         Toplam: <b>{Math.round(totalSec)} sn</b> • Kalan: <b>{Math.max(0, Math.round(MAX_TOTAL_SEC - totalSec))} sn</b>
@@ -1122,13 +1139,13 @@ function HazirClipTrimmer({ clip, onRemove, onUpdate }) {
           <div
             className="h-2 rounded-lg bg-stone-200"
             style={{
-              background: `linear-gradient(to right,
-                #e7e5e4 0%,
-                #e7e5e4 ${startPct}%,
-                #2563eb ${startPct}%,
-                #2563eb ${endPct}%,
-                #e7e5e4 ${endPct}%,
-                #e7e5e4 100%)`,
+background: `linear-gradient(to right,
+  #e7e5e4 0%,
+  #e7e5e4 ${startPct}%,
+  #b45309 ${startPct}%,
+  #b45309 ${endPct}%,
+  #e7e5e4 ${endPct}%,
+  #e7e5e4 100%)`,
             }}
           />
 
