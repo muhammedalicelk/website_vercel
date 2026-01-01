@@ -1132,7 +1132,41 @@ function HazirClipTrimmer({ clip, onRemove, onUpdate }) {
     const sec = Math.floor(s % 60);
     return `${m}:${String(sec).padStart(2, '0')}`;
   };
+   useEffect(() => {
+  return () => {
+    const a = audioRef.current;
+    try { a?.pause?.(); } catch {}
+  };
+}, []);
+useEffect(() => {
+  const a = audioRef.current;
+  if (!a) return;
 
+  const onTime = () => {
+    if (!isPlaying) return;
+
+    if (a.currentTime < start) a.currentTime = start;
+
+    if (a.currentTime >= end) {
+      a.pause();
+      a.currentTime = start;
+      setIsPlaying(false);
+    }
+  };
+
+  const onEnded = () => {
+    setIsPlaying(false);
+    try { a.currentTime = start; } catch {}
+  };
+
+  a.addEventListener('timeupdate', onTime);
+  a.addEventListener('ended', onEnded);
+
+  return () => {
+    a.removeEventListener('timeupdate', onTime);
+    a.removeEventListener('ended', onEnded);
+  };
+}, [isPlaying, start, end]);
   const selectedDur = Math.max(0, end - start);
 useEffect(() => {
   const a = audioRef.current;
@@ -1167,11 +1201,69 @@ useEffect(() => {
 
   return (
       <>
+
+         <div className="flex items-center justify-between gap-3">
+  <div className="text-sm font-semibold text-stone-800 truncate">
+    {clip.title}
+  </div>
+
+  <button
+    type="button"
+    onClick={() => {
+      const a = audioRef.current;
+      try { a?.pause?.(); } catch {}
+      setIsPlaying(false);
+      onRemove?.();
+    }}
+    className="p-2 rounded-full bg-red-100 hover:bg-red-200 transition flex-shrink-0"
+    title="Sil"
+  >
+    <X className="w-4 h-4 text-red-600" />
+  </button>
+</div>
+
      <div className="text-sm font-semibold text-stone-800 truncate">
   {clip.title}
 </div>
     <div className="bg-white border border-amber-200 rounded-xl p-4">
 <audio key={clip.clipId} ref={audioRef} src={clip.toyUrl} preload="metadata" />
+<div className="flex items-center justify-between mt-2">
+  <button
+    type="button"
+    onClick={async () => {
+      const a = audioRef.current;
+      if (!a) return;
+
+      if (isPlaying) {
+        a.pause();
+        setIsPlaying(false);
+        return;
+      }
+
+      try {
+        a.currentTime = start;
+        await a.play();
+        setIsPlaying(true);
+      } catch (e) {
+        console.error(e);
+        setIsPlaying(false);
+        alert('Tarayıcı ses çalmayı engelledi. Play’e tekrar bas.');
+      }
+    }}
+    className="p-2 rounded-full bg-amber-100 hover:bg-amber-200 transition"
+    title={isPlaying ? 'Durdur' : 'Oynat'}
+  >
+    {isPlaying ? (
+      <Pause className="w-4 h-4 text-amber-800" />
+    ) : (
+      <Play className="w-4 h-4 text-amber-800" />
+    )}
+  </button>
+
+  <div className="text-xs text-stone-600">
+    Seçili: <b>{formatTime(end - start)}</b>
+  </div>
+</div>
 
 
       {duration > 0 && (
