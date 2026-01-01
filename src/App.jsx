@@ -260,36 +260,8 @@ const [formData, setFormData] = useState({
 });
 
   const [showNotice, setShowNotice] = useState(false);
- const internetVideoId = useMemo(
-    () => extractYouTubeId(formData.youtubeLink),
-    [formData.youtubeLink]
-  );
-   useEffect(() => {
-  // Link silindiyse / geçersizse, eski video süresi ekranda kalmasın
-  if (!internetVideoId) {
-    setYtDurationSec(null);
-  }
-}, [internetVideoId]);
- useEffect(() => {
-  if (!internetVideoId) {
-    setYtDurationSec(null);
-    setFormData((p) => ({ ...p, ytStartSec: '', ytEndSec: '' }));
-  }
-}, [internetVideoId]);
-  useEffect(() => {
-  const cleanupAfterFileDialog = () => {
-    if (!fileDialogOpenRef.current) return;
-    fileDialogOpenRef.current = false;
 
-    setTimeout(() => {
-      fileInputRef.current?.blur?.();
-      fileInputRef2.current?.blur?.();
-      if (document.activeElement && document.activeElement !== document.body) {
-        document.activeElement.blur?.();
-      }
-    }, 0);
-  };
-const clearUploads = (uploads = []) => {
+   const clearUploads = (uploads = []) => {
   uploads.forEach((f) => {
     try { if (f?.url) URL.revokeObjectURL(f.url); } catch {}
     try { if (f?.preview16kUrl) URL.revokeObjectURL(f.preview16kUrl); } catch {}
@@ -360,6 +332,35 @@ const resetByTab = (tab) => {
     document.removeEventListener('visibilitychange', onVisibility);
   };
 }, []);
+ const internetVideoId = useMemo(
+    () => extractYouTubeId(formData.youtubeLink),
+    [formData.youtubeLink]
+  );
+   useEffect(() => {
+  // Link silindiyse / geçersizse, eski video süresi ekranda kalmasın
+  if (!internetVideoId) {
+    setYtDurationSec(null);
+  }
+}, [internetVideoId]);
+ useEffect(() => {
+  if (!internetVideoId) {
+    setYtDurationSec(null);
+    setFormData((p) => ({ ...p, ytStartSec: '', ytEndSec: '' }));
+  }
+}, [internetVideoId]);
+  useEffect(() => {
+  const cleanupAfterFileDialog = () => {
+    if (!fileDialogOpenRef.current) return;
+    fileDialogOpenRef.current = false;
+
+    setTimeout(() => {
+      fileInputRef.current?.blur?.();
+      fileInputRef2.current?.blur?.();
+      if (document.activeElement && document.activeElement !== document.body) {
+        document.activeElement.blur?.();
+      }
+    }, 0);
+  };
 
 useEffect(() => {
   if (window.YT && window.YT.Player) return;
