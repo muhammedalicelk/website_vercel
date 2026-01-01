@@ -941,73 +941,31 @@ function TabButton({ active, onClick, children, icon }) {
    ========================================================= */
 
 function HazirMuzikMulti({ formData, setFormData }) {
-  const [query, setQuery] = useState('');
-  const [selectedSongId, setSelectedSongId] = useState('');
+  const [query, setQuery] = React.useState('');
+  const [selectedSongId, setSelectedSongId] = React.useState('');
 
-  const filtered = useMemo(() => {
+  const filtered = React.useMemo(() => {
     const q = query.trim().toLowerCase();
     if (!q) return SONGS;
     return SONGS.filter((s) => {
-      const inTitle = s.title.toLowerCase().includes(q);
-      const inTags = (s.tags || []).some((t) => t.toLowerCase().includes(q));
+      const inTitle = (s.title || '').toLowerCase().includes(q);
+      const inTags = (s.tags || []).some((t) => (t || '').toLowerCase().includes(q));
       return inTitle || inTags;
     });
   }, [query]);
 
+  const addSelected = () => {
+    const song = SONGS.find((s) => s.id === selectedSongId);
+    if (!song) return;
 
-
-
-
-  const selected = SONGS.find((s) => s.id === selectedSongId);
-
-  // mp3 duration oku
-  const readDuration = (url) =>
-    new Promise((resolve) => {
-      const a = new Audio();
-      a.preload = 'metadata';
-      a.src = url;
-      a.onloadedmetadata = () => resolve(a.duration || 0);
-      a.onerror = () => resolve(0);
-      a.load();
-    });
-
-  const headExists = async (url) => {
-    try {
-      const r = await fetch(url, { method: 'HEAD', cache: 'no-store' });
-      return !!r.ok;
-    } catch {
-      return false;
-    }
-  };
-
-  const addClip = async () => {
-    if (!selected) return;
-
-    const toyUrl = `/previews16k/${selected.id}.mp3`;
-
-    // 1) preview var mı?
-    const ok = await headExists(toyUrl);
-
-    // 2) duration oku (yoksa 0)
-    const dur = await readDuration(toyUrl);
-
-    // 3) yeni clip default aralığı:
-    // - yeni clip, kalan kadar yer varsa o kadar (veya tüm şarkı, hangisi küçükse)
-    // - kalan yoksa 1sn ekle (kullanıcı isterse diğerlerini kısaltıp bunu büyütür)
-    const maxLenForNew = remaining > 0 ? remaining : 1;
-    const end = Math.min(dur || maxLenForNew, maxLenForNew);
-
+    // Varsayılan aralık: 0-10sn (istersen değiştir)
     const clip = {
-      clipId: makeId(),
-      songId: selected.id,
-      title: selected.title,
-      youtubeId: selected.youtubeId,
-      toyUrl,
-      songDur: dur || 0,
+      id: (crypto?.randomUUID?.() || String(Date.now()) + Math.random()),
+      title: song.title,
+      youtubeId: song.youtubeId,
       start: 0,
-      end: Math.max(0.5, end), // en az 0.5 sn
-      toyOk: ok,
-      tags: selected.tags || [],
+      end: 10,
+      toyOk: true, // sende kontrol ediyorsun diye true yaptım
     };
 
     setFormData((p) => ({
@@ -1016,104 +974,60 @@ function HazirMuzikMulti({ formData, setFormData }) {
     }));
   };
 
-  const removeClip = (clipId) => {
-    setFormData((p) => ({
-      ...p,
-      hazirClips: (p.hazirClips || []).filter((c) => c.clipId !== clipId),
-    }));
-  };
+  return (
+    <div>
+      <div className="mb-3 text-sm text-stone-700">Hazır müzik ekle (çoklu seçim):</div>
 
-  // Kırpma update: total 310 aşarsa sadece o clip clamp’lensin (diğerleri sabit)
-  const updateClip = (clipId, updates) => {
-    setFormData((p) => {
-      const clips = p.hazirClips || [];
-      const idx = clips.findIndex((c) => c.clipId === clipId);
-      if (idx < 0) return p;
+      <input
+        value={query}
+        onChange={(e) => setQuery(e.target.value)}
+        placeholder="Ara: Şarkı ismi / Tür / Dil"
+        className="w-full px-4 py-3 border-2 border-amber-200 rounded-xl focus:border-amber-600 focus:outline-none transition bg-white mb-3"
+      />
 
-      const next = { ...clips[idx], ...updates };
-      const othersTotal = clips.reduce((sum, c, i) => {
-        if (i === idx) return sum;
-        return sum + Math.max(0, c.end - c.start);
-      }, 0);
+      <div className="flex gap-2">
+        <select
+          value={selectedSongId}
+          onChange={(e) => setSelectedSongId(e.target.value)}
+          className="flex-1 px-4 py-3 border-2 border-amber-200 rounded-xl bg-white"
+        >
+          <option value="">Seç...</option>
+          {filtered.map((s) => (
+            <option key={s.id} value={s.id}>
+              {s.title}
+            </option>
+          ))}
+        </select>
 
-      const maxLen = Math.max(0.5, MAX_TOTAL_SEC - othersTotal);
-      const minEnd = next.start + 0.5;
-      const hardMaxEnd = (next.songDur && next.songDur > 0) ? next.songDur : Infinity;
-
-      // end: hem şarkı süresini hem maxLen’i aşmasın
-      const allowedEnd = Math.min(next.start + maxLen, hardMaxEnd);
-      if (next.end > allowedEnd) next.end = allowedEnd;
-      if (next.end < minEnd) next.end = minEnd;
-
-      const newClips = clips.slice();
-      newClips[idx] = next;
-      return { ...p, hazirClips: newClips };
-    });
-  };
-
-return (
-  <div>
-
-
-    <p className="text-sm text-stone-700 mb-3">Hazır müzik ekle (çoklu seçim):</p>
-
-    <input
-      type="text"
-      value={query}
-      onChange={(e) => setQuery(e.target.value)}
-      className="w-full px-4 py-3 border-2 border-amber-200 rounded-xl focus:border-amber-600 focus:outline-none transition mb-3 bg-white"
-      placeholder="Ara: Şarkı İsmi / Tür / Dil"
-    />
-
-    <div className="flex gap-2">
-      <select
-        value={selectedSongId}
-        onChange={(e) => setSelectedSongId(e.target.value)}
-        className="flex-1 px-4 py-3 border-2 border-amber-200 rounded-xl focus:border-amber-600 focus:outline-none transition bg-white"
-      >
-        <option value="">— Müzik seç —</option>
-        {filtered.map((s) => (
-          <option key={s.id} value={s.id}>
-            {s.title}
-          </option>
-        ))}
-      </select>
-
-      <button
-        type="button"
-        onClick={addClip}
-        disabled={!selectedSongId}
-        className={`px-4 rounded-xl font-semibold ${
-          selectedSongId ? 'bg-amber-700 text-white' : 'bg-stone-300 text-stone-500'
-        }`}
-      >
-        Ekle
-      </button>
-    </div>
-
-    {filtered.length === 0 && (
-      <div className="mt-3 text-sm text-amber-800">Sonuç yok. Arama kelimesini değiştir.</div>
-    )}
-
-    {(formData.hazirClips || []).length > 0 && (
-      <div className="mt-5 space-y-4">
-        <div className="text-sm font-semibold text-stone-800">
-          Seçilen Parçalar (kırpılabilir):
-        </div>
-
-{(formData.hazirClips || []).map((c) => (
-  <HazirClipTrimmer
-    key={c.clipId}
-    clip={c}
-    onRemove={() => removeClip(c.clipId)}
-    onUpdate={(u) => updateClip(c.clipId, u)}
-  />
-))}
+        <button
+          type="button"
+          onClick={addSelected}
+          disabled={!selectedSongId}
+          className="px-5 py-3 rounded-xl font-semibold bg-amber-700 text-white disabled:bg-stone-300"
+        >
+          Ekle
+        </button>
       </div>
-    )}
-  </div>
-);
+
+      <div className="mt-5">
+        <div className="text-sm font-semibold text-stone-800 mb-2">Seçilen Parçalar:</div>
+
+        {(formData.hazirClips || []).length === 0 ? (
+          <div className="text-xs text-stone-500">Henüz eklenmedi.</div>
+        ) : (
+          <div className="space-y-2">
+            {(formData.hazirClips || []).map((c) => (
+              <div key={c.id} className="text-sm text-stone-700">
+                • {c.title} ({c.start}-{c.end})
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  );
 }
+
 function HazirClipTrimmer({ clip, onRemove, onUpdate }) {
 
   const audioRef = useRef(null);
