@@ -289,6 +289,61 @@ const [formData, setFormData] = useState({
       }
     }, 0);
   };
+const clearUploads = (uploads = []) => {
+  uploads.forEach((f) => {
+    try { if (f?.url) URL.revokeObjectURL(f.url); } catch {}
+    try { if (f?.preview16kUrl) URL.revokeObjectURL(f.preview16kUrl); } catch {}
+  });
+};
+
+const resetByTab = (tab) => {
+  setFormData((p) => {
+    // önce mevcut upload url’lerini temizleyeceksek burada yakalayalım
+    const prevUploads = p.yukluDosyalar || [];
+
+    // her tab geçişinde: youtube duration/alanlarını da kontrol edeceğiz (state dışında da var)
+    // (ytDurationSec zaten ayrı state, onu aşağıda useEffect’te set edeceğiz)
+    if (tab === 'hazir') {
+      clearUploads(prevUploads);
+      return {
+        ...p,
+        hazirClips: p.hazirClips || [],
+        yukluDosyalar: [],
+        youtubeLink: '',
+        ytStartSec: '',
+        ytEndSec: '',
+      };
+    }
+
+    if (tab === 'yukle') {
+      return {
+        ...p,
+        hazirClips: [],
+        youtubeLink: '',
+        ytStartSec: '',
+        ytEndSec: '',
+        // uploads kalsın (çünkü dosya tabı)
+        yukluDosyalar: p.yukluDosyalar || [],
+      };
+    }
+
+    if (tab === 'internet') {
+      // internet sekmesinde dosya göstermek istemiyorsun => temizle
+      clearUploads(prevUploads);
+      return {
+        ...p,
+        hazirClips: [],
+        yukluDosyalar: [],
+        // youtube alanları internet için kalsın
+        youtubeLink: p.youtubeLink || '',
+        ytStartSec: p.ytStartSec || '',
+        ytEndSec: p.ytEndSec || '',
+      };
+    }
+
+    return p;
+  });
+};
 
   const onFocus = () => cleanupAfterFileDialog();
 
@@ -319,27 +374,7 @@ useEffect(() => {
   document.body.appendChild(tag);
 }, []);
 
-   useEffect(() => {
-  // Sekmeden çıkınca internet sekmesine ait hatalar/uyarılar taşınmasın
-  if (activeTab !== 'internet') {
-    setYtDurationSec(null);
-
-    setFormData((p) => ({
-      ...p,
-      youtubeLink: '',
-      ytStartSec: '',
-      ytEndSec: '',
-    }));
-  }
-
-
-
-  // Dosya sekmesi için isteğe bağlı:
-  // Eğer "dosyalar tablar arasında kalsın" istiyorsan bunu ekleme.
-  // if (activeTab !== 'yukle') {
-  //   setFormData(p => ({ ...p, yukluDosyalar: [] }));
-  // }
-}, [activeTab]);
+ 
   useEffect(() => {
   setShowNotice(true);
 }, []);
@@ -453,6 +488,7 @@ useEffect(() => {
     setFormData((p) => {
       const target = p.yukluDosyalar.find((x) => x.id === id);
       if (target?.url) URL.revokeObjectURL(target.url);
+      if (target?.preview16kUrl) URL.revokeObjectURL(target.preview16kUrl);
       return { ...p, yukluDosyalar: p.yukluDosyalar.filter((x) => x.id !== id) };
     });
   };
@@ -684,17 +720,42 @@ onChange={(v) => setFormData(p => ({ ...p, telefon: v }))}
               </div>
 
               <div className="flex gap-2 mb-6 flex-wrap">
-                <TabButton active={activeTab === 'hazir'} onClick={() => setActiveTab('hazir')} icon={<Music className="w-4 h-4" />}>
-                  Hazır
-                </TabButton>
+                <TabButton
+  active={activeTab === 'hazir'}
+  onClick={() => {
+    resetByTab('hazir');
+    setYtDurationSec(null);
+    setActiveTab('hazir');
+  }}
+  icon={<Music className="w-4 h-4" />}
+>
+  Hazır
+</TabButton>
 
-                <TabButton active={activeTab === 'yukle'} onClick={() => setActiveTab('yukle')} icon={<Upload className="w-4 h-4" />}>
-                  Dosya
-                </TabButton>
+<TabButton
+  active={activeTab === 'yukle'}
+  onClick={() => {
+    resetByTab('yukle');
+    setYtDurationSec(null);
+    setActiveTab('yukle');
+  }}
+  icon={<Upload className="w-4 h-4" />}
+>
+  Dosya
+</TabButton>
 
-                <TabButton active={activeTab === 'internet'} onClick={() => setActiveTab('internet')} icon={<Globe className="w-4 h-4" />}>
-                  İnternet
-                </TabButton>
+<TabButton
+  active={activeTab === 'internet'}
+  onClick={() => {
+    resetByTab('internet');
+    // internet’te duration yeni linkten okunacak
+    setYtDurationSec(null);
+    setActiveTab('internet');
+  }}
+  icon={<Globe className="w-4 h-4" />}
+>
+  İnternet
+</TabButton>
               </div>
 
 <div className="bg-amber-50/30 rounded-xl p-6 border border-amber-100">
