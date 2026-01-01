@@ -967,7 +967,7 @@ function HazirMuzikMulti({ formData, setFormData }) {
 
       // 🔴 BUNU KENDİ YAPINA GÖRE DOLDUR
       // Eğer song içinde hazır 16k preview url varsa onu koy:
-      toyUrl: song.toyUrl || song.previewUrl || song.preview16kUrl || '',
+      toyUrl: `/previews16k/${song.id}.mp3`,
       songDur: song.durationSec || 0, // yoksa 0 kalsın, audio metadata ile dolduruluyor
     };
 
@@ -1054,215 +1054,182 @@ const updateClip = (clipId, patch) => {
 
 
 function HazirClipTrimmer({ clip, onRemove, onUpdate }) {
-
   const audioRef = useRef(null);
   const [isPlaying, setIsPlaying] = useState(false);
   const [activeThumb, setActiveThumb] = useState(null);
 
-  const duration = clip.songDur || 0;
-  const start = clip.start || 0;
-  const end = clip.end || Math.max(0.5, start + 0.5);
+  const duration = Number(clip.songDur) || 0;
+  const start = Number(clip.start) || 0;
+  const end = Number(clip.end) || Math.max(0.5, start + 0.5);
 
-  // 🔥 clamp01 ismini değiştir (duplicate riskini sıfırlar)
   const clampPct = (x) => Math.max(0, Math.min(100, x));
   const startPct = duration ? clampPct((start / duration) * 100) : 0;
-  const endPct   = duration ? clampPct((end   / duration) * 100) : 0;
+  const endPct = duration ? clampPct((end / duration) * 100) : 0;
 
   const formatTime = (s) => {
     const m = Math.floor(s / 60);
     const sec = Math.floor(s % 60);
     return `${m}:${String(sec).padStart(2, '0')}`;
   };
-   useEffect(() => {
-  const a = audioRef.current;
-  if (!a) return;
 
-  const onPlay = () => {
-    // play'e basınca start'a çek
-    if (a.currentTime < start || a.currentTime > end) {
-      a.currentTime = start;
-    }
-  };
-
-  const onTime = () => {
-    // kullanıcı scrub yapsa bile aralığın dışına çıkmasın
-    if (a.currentTime < start) a.currentTime = start;
-    if (a.currentTime >= end) {
-      a.pause();
-      a.currentTime = start;
-    }
-  };
-
-  a.addEventListener('play', onPlay);
-  a.addEventListener('timeupdate', onTime);
-  return () => {
-    a.removeEventListener('play', onPlay);
-    a.removeEventListener('timeupdate', onTime);
-  };
-}, [start, end]);
-   useEffect(() => {
-  return () => {
+  // ✅ Metadata: süreyi kesin yaz
+  useEffect(() => {
     const a = audioRef.current;
-    try { a?.pause?.(); } catch {}
-  };
-}, []);
-useEffect(() => {
-  const a = audioRef.current;
-  if (!a) return;
+    if (!a) return;
 
-  const onTime = () => {
-    if (!isPlaying) return;
+    const onMeta = () => {
+      const dur = a.duration || 0;
+      if (!dur || !Number.isFinite(dur)) return;
 
-    if (a.currentTime < start) a.currentTime = start;
+      // songDur set
+      if (!clip.songDur || clip.songDur <= 0 || Math.abs(clip.songDur - dur) > 0.01) {
+        const safeStart = Math.min(Number(clip.start) || 0, Math.max(0, dur - 0.5));
+        const safeEnd = Math.min(Number(clip.end) || dur, dur);
 
-    if (a.currentTime >= end) {
-      a.pause();
-      a.currentTime = start;
+        onUpdate({
+          songDur: dur,
+          start: safeStart,
+          end: Math.max(safeStart + 0.5, safeEnd),
+        });
+      }
+    };
+
+    a.addEventListener('loadedmetadata', onMeta);
+    return () => a.removeEventListener('loadedmetadata', onMeta);
+    // ✅ clip.id doğru
+  }, [clip.id]);
+
+  // ✅ Play sırasında aralık dışına çıkmasın
+  useEffect(() => {
+    const a = audioRef.current;
+    if (!a) return;
+
+    const onTime = () => {
+      if (!isPlaying) return;
+
+      if (a.currentTime < start) a.currentTime = start;
+
+      if (a.currentTime >= end) {
+        a.pause();
+        a.currentTime = start;
+        setIsPlaying(false);
+      }
+    };
+
+    const onEnded = () => {
       setIsPlaying(false);
-    }
-  };
+      try { a.currentTime = start; } catch {}
+    };
 
-  const onEnded = () => {
-    setIsPlaying(false);
-    try { a.currentTime = start; } catch {}
-  };
+    a.addEventListener('timeupdate', onTime);
+    a.addEventListener('ended', onEnded);
+    return () => {
+      a.removeEventListener('timeupdate', onTime);
+      a.removeEventListener('ended', onEnded);
+    };
+  }, [isPlaying, start, end]);
 
-  a.addEventListener('timeupdate', onTime);
-  a.addEventListener('ended', onEnded);
-
-  return () => {
-    a.removeEventListener('timeupdate', onTime);
-    a.removeEventListener('ended', onEnded);
-  };
-}, [isPlaying, start, end]);
-  const selectedDur = Math.max(0, end - start);
-useEffect(() => {
-  const a = audioRef.current;
-  if (!a) return;
-
-  const onMeta = () => {
-    const dur = a.duration || 0;
-    if (!dur || !Number.isFinite(dur)) return;
-
-    // duration'ı state'e yaz (clip'e)
-    if (!clip.songDur || clip.songDur <= 0) {
-      onUpdate({
-        songDur: dur,
-        start: Math.min(clip.start || 0, Math.max(0, dur - 0.5)),
-        end: Math.min(clip.end || dur, dur),
-      });
-    }
-  };
-
-  a.addEventListener('loadedmetadata', onMeta);
-  return () => a.removeEventListener('loadedmetadata', onMeta);
-}, [clip.clipId]);
   const handleStart = (val) => {
-    const nextStart = Math.min(val, end - 0.5);
-    onUpdate({ start: Math.max(0, nextStart) });
+    const nextStart = Math.max(0, Math.min(val, end - 0.5));
+    onUpdate({ start: nextStart });
+    const a = audioRef.current;
+    if (a && isPlaying) a.currentTime = nextStart;
   };
 
   const handleEnd = (val) => {
-    const nextEnd = Math.max(val, start + 0.5);
+    const nextEnd = Math.max(start + 0.5, val);
     onUpdate({ end: nextEnd });
   };
 
   return (
-      <>
-<div className="mt-3">
-  <div className="text-xs font-semibold text-stone-700 mb-1">
-    Oyuncakta Duyulacak (16 kHz)
-  </div>
-
-  <audio
-    ref={audioRef}
-    src={clip.toyUrl}
-    preload="metadata"
-    controls
-    className="w-full"
-  />
-</div>
-         <div className="flex items-center justify-between gap-3">
-  <div className="text-sm font-semibold text-stone-800 truncate">
-    {clip.title}
-  </div>
-
-  <button
-    type="button"
-    onClick={() => {
-      const a = audioRef.current;
-      try { a?.pause?.(); } catch {}
-      setIsPlaying(false);
-      onRemove?.();
-    }}
-    className="p-2 rounded-full bg-red-100 hover:bg-red-200 transition flex-shrink-0"
-    title="Sil"
-  >
-    <X className="w-4 h-4 text-red-600" />
-  </button>
-</div>
-
-
     <div className="bg-white border border-amber-200 rounded-xl p-4">
-<audio key={clip.clipId} ref={audioRef} src={clip.toyUrl} preload="metadata" />
-<div className="flex items-center justify-between mt-2">
-  <button
-    type="button"
-    onClick={async () => {
-      const a = audioRef.current;
-      if (!a) return;
+      {/* ÜST BAR */}
+      <div className="flex items-center justify-between gap-3">
+        <div className="text-sm font-semibold text-stone-800 truncate">
+          {clip.title}
+        </div>
 
-      if (isPlaying) {
-        a.pause();
-        setIsPlaying(false);
-        return;
-      }
+        <button
+          type="button"
+          onClick={() => {
+            const a = audioRef.current;
+            try { a?.pause?.(); } catch {}
+            setIsPlaying(false);
+            onRemove?.();
+          }}
+          className="p-2 rounded-full bg-red-100 hover:bg-red-200 transition flex-shrink-0"
+          title="Sil"
+        >
+          <X className="w-4 h-4 text-red-600" />
+        </button>
+      </div>
 
-      try {
-        a.currentTime = start;
-        await a.play();
-        setIsPlaying(true);
-      } catch (e) {
-        console.error(e);
-        setIsPlaying(false);
-        alert('Tarayıcı ses çalmayı engelledi. Play’e tekrar bas.');
-      }
-    }}
-    className="p-2 rounded-full bg-amber-100 hover:bg-amber-200 transition"
-    title={isPlaying ? 'Durdur' : 'Oynat'}
-  >
-    {isPlaying ? (
-      <Pause className="w-4 h-4 text-amber-800" />
-    ) : (
-      <Play className="w-4 h-4 text-amber-800" />
-    )}
-  </button>
+      {/* ✅ TEK AUDIO */}
+      <div className="mt-3">
+        <div className="text-xs font-semibold text-stone-700 mb-1">
+          Oyuncakta Duyulacak (16 kHz)
+        </div>
 
-  <div className="text-xs text-stone-600">
-    Seçili: <b>{formatTime(end - start)}</b>
-  </div>
-</div>
+        <audio ref={audioRef} src={clip.toyUrl} preload="metadata" className="hidden" />
 
+        <div className="flex items-center justify-between mt-2">
+          <button
+            type="button"
+            onClick={async () => {
+              const a = audioRef.current;
+              if (!a) return;
 
-      {duration > 0 && (
+              if (isPlaying) {
+                a.pause();
+                setIsPlaying(false);
+                return;
+              }
+
+              try {
+                a.currentTime = start;
+                await a.play();
+                setIsPlaying(true);
+              } catch (e) {
+                console.error(e);
+                setIsPlaying(false);
+                alert('Tarayıcı ses çalmayı engelledi. Play’e tekrar bas.');
+              }
+            }}
+            className="p-2 rounded-full bg-amber-100 hover:bg-amber-200 transition"
+            title={isPlaying ? 'Durdur' : 'Oynat'}
+          >
+            {isPlaying ? (
+              <Pause className="w-4 h-4 text-amber-800" />
+            ) : (
+              <Play className="w-4 h-4 text-amber-800" />
+            )}
+          </button>
+
+          <div className="text-xs text-stone-600">
+            Seçili: <b>{formatTime(Math.max(0, end - start))}</b>
+          </div>
+        </div>
+      </div>
+
+      {/* ✅ SLIDER (duration gelince görünür) */}
+      {duration > 0 ? (
         <div className="mt-4">
           <div
             className="h-2 rounded-lg bg-stone-200"
             style={{
-background: `linear-gradient(to right,
-  #e7e5e4 0%,
-  #e7e5e4 ${startPct}%,
-  #b45309 ${startPct}%,
-  #b45309 ${endPct}%,
-  #e7e5e4 ${endPct}%,
-  #e7e5e4 100%)`,
+              background: `linear-gradient(to right,
+                #e7e5e4 0%,
+                #e7e5e4 ${startPct}%,
+                #b45309 ${startPct}%,
+                #b45309 ${endPct}%,
+                #e7e5e4 ${endPct}%,
+                #e7e5e4 100%)`,
             }}
           />
 
           <div className="relative mt-2 pt-7">
             <div
-             className="absolute -top-1 text-[11px] px-2 py-1 rounded-md bg-amber-700 text-white shadow"
-
+              className="absolute -top-1 text-[11px] px-2 py-1 rounded-md bg-amber-700 text-white shadow"
               style={{ left: `${startPct}%`, transform: 'translateX(-50%)' }}
             >
               {formatTime(start)}
@@ -1283,7 +1250,7 @@ background: `linear-gradient(to right,
               value={start}
               onPointerDown={() => setActiveThumb('start')}
               onChange={(e) => handleStart(parseFloat(e.target.value))}
-             className="w-full hazirRange"
+              className="w-full hazirRange"
               style={{ zIndex: activeThumb === 'start' ? 3 : 2 }}
             />
 
@@ -1305,12 +1272,15 @@ background: `linear-gradient(to right,
             <span>{formatTime(duration)}</span>
           </div>
         </div>
+      ) : (
+        <div className="mt-3 text-xs text-amber-700">
+          ⏳ Önizleme hazırlanıyor... (toyUrl doğruysa 1-2 sn içinde slider gelir)
+        </div>
       )}
-      
     </div>
-    </>
-  );    
+  );
 }
+
 function YouTubeRangePicker({ ytDurationSec, formData, setFormData }) {
   // Video süresi varsa...
   const FALLBACK_MAX = 2 * 60 * 60;
