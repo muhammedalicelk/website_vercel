@@ -1136,25 +1136,34 @@ function HazirMuzikMulti({ formData, setFormData }) {
 function HazirClipTrimmer({ clip, onRemove, onUpdate }) {
   const audioRef = useRef(null);
   const [isPlaying, setIsPlaying] = useState(false);
-  const [activeThumb, setActiveThumb] = useState(null);
 
+  /* =======================
+     AYARLANABİLİR PENCERE
+     ======================= */
+  const WINDOW_OPTIONS = [5, 10, 15, 20]; // saniye
+  const [windowSec, setWindowSec] = useState(10);
+
+  /* =======================
+     TEMEL DEĞERLER
+     ======================= */
   const duration = Number(clip.songDur) || 0;
   const start = Number(clip.start) || 0;
-  const end = Number(clip.end) || Math.max(0.5, start + 0.5);
+  const end = Number(clip.end) || Math.min(duration, start + windowSec);
 
-  const clampPct = (x) => Math.max(0, Math.min(100, x));
-  const startPct = duration ? clampPct((start / duration) * 100) : 0;
-  const endPct = duration ? clampPct((end / duration) * 100) : 0;
+  const center = start + (end - start) / 2;
 
+  /* =======================
+     FORMAT
+     ======================= */
   const formatTime = (s) => {
     const m = Math.floor(s / 60);
     const sec = Math.floor(s % 60);
     return `${m}:${String(sec).padStart(2, '0')}`;
   };
 
-  /* =========================================================
-     METADATA – duration KESİN gelsin
-     ========================================================= */
+  /* =======================
+     METADATA OKUMA
+     ======================= */
   useEffect(() => {
     const a = audioRef.current;
     if (!a) return;
@@ -1164,31 +1173,28 @@ function HazirClipTrimmer({ clip, onRemove, onUpdate }) {
       if (!dur || !Number.isFinite(dur)) return;
 
       if (!clip.songDur || Math.abs(clip.songDur - dur) > 0.01) {
-        const safeStart = Math.min(start, Math.max(0, dur - 0.5));
-        const safeEnd = Math.min(end || dur, dur);
-
+        const safeEnd = Math.min(dur, windowSec);
         onUpdate({
           songDur: dur,
-          start: safeStart,
-          end: Math.max(safeStart + 0.5, safeEnd),
+          start: 0,
+          end: safeEnd,
         });
       }
     };
 
     a.addEventListener('loadedmetadata', onMeta);
     return () => a.removeEventListener('loadedmetadata', onMeta);
-  }, [clip.clipId, clip.toyUrl]);
+  }, [clip.id, windowSec]);
 
-  /* =========================================================
-     PLAY SIRASINDA ARALIK KORUMA
-     ========================================================= */
+  /* =======================
+     PLAY KONTROL
+     ======================= */
   useEffect(() => {
     const a = audioRef.current;
     if (!a) return;
 
     const onTime = () => {
       if (!isPlaying) return;
-
       if (a.currentTime < start) a.currentTime = start;
       if (a.currentTime >= end) {
         a.pause();
@@ -1197,214 +1203,139 @@ function HazirClipTrimmer({ clip, onRemove, onUpdate }) {
       }
     };
 
-    const onEnded = () => {
-      setIsPlaying(false);
-      try { a.currentTime = start; } catch {}
-    };
-
     a.addEventListener('timeupdate', onTime);
-    a.addEventListener('ended', onEnded);
-    return () => {
-      a.removeEventListener('timeupdate', onTime);
-      a.removeEventListener('ended', onEnded);
-    };
+    return () => a.removeEventListener('timeupdate', onTime);
   }, [isPlaying, start, end]);
 
-  /* =========================================================
-     SLIDER HANDLER
-     ========================================================= */
-  const handleStart = (val) => {
-    const nextStart = Math.max(0, Math.min(val, end - 0.5));
-    onUpdate({ start: nextStart });
+  /* =======================
+     TEK SLIDER → CENTER
+     ======================= */
+  const handleCenterChange = (val) => {
+    const half = windowSec / 2;
+
+    let newStart = val - half;
+    let newEnd = val + half;
+
+    if (newStart < 0) {
+      newStart = 0;
+      newEnd = windowSec;
+    }
+
+    if (newEnd > duration) {
+      newEnd = duration;
+      newStart = Math.max(0, duration - windowSec);
+    }
+
+    onUpdate({ start: newStart, end: newEnd });
+
     if (audioRef.current && isPlaying) {
-      audioRef.current.currentTime = nextStart;
+      audioRef.current.currentTime = newStart;
     }
   };
 
-  const handleEnd = (val) => {
-    const nextEnd = Math.min(
-      duration || Infinity,
-      Math.max(start + 0.5, val)
-    );
-    onUpdate({ end: nextEnd });
-  };
+  /* =======================
+     GÖRSEL YÜZDELER
+     ======================= */
+  const startPct = duration ? (start / duration) * 100 : 0;
+  const endPct = duration ? (end / duration) * 100 : 0;
 
-  /* =========================================================
-     RENDER
-     ========================================================= */
+  /* =======================
+     UI
+     ======================= */
   return (
-    <div className="bg-white border border-amber-200 rounded-xl p-4">
-      {/* SLIDER STYLE (LOCAL) */}
-      <style>{`
-        .hazirRange{
-          -webkit-appearance:none;
-          appearance:none;
-          width:100%;
-          height:26px;
-          background:transparent;
-          outline:none;
-        }
-        .hazirRange::-webkit-slider-runnable-track{
-          height:0px;
-          background:transparent;
-          border:none;
-        }
-        .hazirRange::-webkit-slider-thumb{
-          -webkit-appearance:none;
-          appearance:none;
-          width:16px;
-          height:16px;
-          border-radius:9999px;
-          background:#b45309;
-          border:2px solid #92400e;
-          box-shadow:0 1px 3px rgba(0,0,0,0.25);
-          cursor:grab;
-        }
-        .hazirRange::-moz-range-track{
-          background:transparent;
-          border:none;
-        }
-        .hazirRange::-moz-range-thumb{
-          width:16px;
-          height:16px;
-          border-radius:9999px;
-          background:#b45309;
-          border:2px solid #92400e;
-          box-shadow:0 1px 3px rgba(0,0,0,0.25);
-          cursor:grab;
-        }
-      `}</style>
+    <div className="bg-white border border-amber-200 rounded-xl p-4 space-y-3">
+      <audio ref={audioRef} src={clip.toyUrl} preload="metadata" />
 
-      {/* HEADER */}
-      <div className="flex items-center justify-between gap-3">
+      {/* ÜST */}
+      <div className="flex justify-between items-center">
         <div className="text-sm font-semibold text-stone-800 truncate">
           {clip.title}
         </div>
-
         <button
-          type="button"
-          onClick={() => {
-            try { audioRef.current?.pause?.(); } catch {}
-            setIsPlaying(false);
-            onRemove?.();
-          }}
-          className="p-2 rounded-full bg-red-100 hover:bg-red-200 transition"
-          title="Sil"
+          onClick={onRemove}
+          className="p-2 rounded-full bg-red-100 hover:bg-red-200"
         >
-          <X className="w-4 h-4 text-red-600" />
+          ✕
         </button>
       </div>
 
-      {/* AUDIO */}
-      <div className="mt-3">
-        <audio ref={audioRef} src={clip.toyUrl} preload="metadata" />
+      {/* PLAY */}
+      <div className="flex items-center gap-3">
+        <button
+          onClick={async () => {
+            const a = audioRef.current;
+            if (!a) return;
 
-        <div className="flex items-center justify-between mt-2">
-          <button
-            type="button"
-            onClick={async () => {
-              const a = audioRef.current;
-              if (!a) return;
+            if (isPlaying) {
+              a.pause();
+              setIsPlaying(false);
+              return;
+            }
 
-              if (isPlaying) {
-                a.pause();
-                setIsPlaying(false);
-                return;
-              }
+            a.currentTime = start;
+            await a.play();
+            setIsPlaying(true);
+          }}
+          className="p-2 rounded-full bg-amber-100 hover:bg-amber-200"
+        >
+          {isPlaying ? '⏸' : '▶'}
+        </button>
 
-              try {
-                a.currentTime = start;
-                await a.play();
-                setIsPlaying(true);
-              } catch {
-                setIsPlaying(false);
-                alert('Tarayıcı sesi engelledi. Tekrar dene.');
-              }
-            }}
-            className="p-2 rounded-full bg-amber-100 hover:bg-amber-200"
-          >
-            {isPlaying ? (
-              <Pause className="w-4 h-4 text-amber-800" />
-            ) : (
-              <Play className="w-4 h-4 text-amber-800" />
-            )}
-          </button>
-
-          <div className="text-xs text-stone-600">
-            Seçili: <b>{formatTime(end - start)}</b>
-          </div>
+        <div className="text-xs text-stone-600">
+          Seçili: <b>{formatTime(end - start)}</b>
         </div>
       </div>
 
-      {/* SLIDER */}
-      {duration > 0 ? (
-        <div className="mt-4">
-          <div
-            className="h-2 rounded-lg"
-            style={{
-              background: `linear-gradient(to right,
-                #e7e5e4 0%,
-                #e7e5e4 ${startPct}%,
-                #b45309 ${startPct}%,
-                #b45309 ${endPct}%,
-                #e7e5e4 ${endPct}%,
-                #e7e5e4 100%)`,
-            }}
-          />
+      {/* PENCERE SEÇİMİ */}
+      <div className="flex gap-2 text-xs">
+        {WINDOW_OPTIONS.map((w) => (
+          <button
+            key={w}
+            onClick={() => setWindowSec(w)}
+            className={`px-3 py-1 rounded-full border ${
+              windowSec === w
+                ? 'bg-amber-700 text-white'
+                : 'bg-amber-50'
+            }`}
+          >
+            {w} sn
+          </button>
+        ))}
+      </div>
 
-          <div className="relative mt-2 pt-7">
-            <div
-              className="absolute -top-1 text-[11px] px-2 py-1 rounded-md bg-amber-700 text-white"
-              style={{ left: `${startPct}%`, transform: 'translateX(-50%)' }}
-            >
-              {formatTime(start)}
-            </div>
+      {/* BAR */}
+      <div
+        className="h-2 rounded bg-stone-200"
+        style={{
+          background: `linear-gradient(to right,
+            #e7e5e4 0%,
+            #e7e5e4 ${startPct}%,
+            #b45309 ${startPct}%,
+            #b45309 ${endPct}%,
+            #e7e5e4 ${endPct}%,
+            #e7e5e4 100%)`,
+        }}
+      />
 
-            <div
-              className="absolute -top-1 text-[11px] px-2 py-1 rounded-md bg-amber-800 text-white"
-              style={{ left: `${endPct}%`, transform: 'translateX(-50%)' }}
-            >
-              {formatTime(end)}
-            </div>
+      {/* TEK SLIDER */}
+      <input
+        type="range"
+        min={windowSec / 2}
+        max={Math.max(windowSec / 2, duration - windowSec / 2)}
+        step={0.01}
+        value={center}
+        onChange={(e) => handleCenterChange(Number(e.target.value))}
+        className="w-full hazirRange"
+      />
 
-            <input
-              type="range"
-              min="0"
-              max={Math.max(0, duration - 0.5)}
-              step={STEP_FINE}
-              value={start}
-              onPointerDown={() => setActiveThumb('start')}
-              onChange={(e) => handleStart(parseFloat(e.target.value))}
-              className="w-full hazirRange"
-              style={{ zIndex: activeThumb === 'start' ? 3 : 2 }}
-            />
-
-            <input
-              type="range"
-              min="0.5"
-              max={duration}
-              step={STEP_FINE}
-              value={end}
-              onPointerDown={() => setActiveThumb('end')}
-              onChange={(e) => handleEnd(parseFloat(e.target.value))}
-              className="w-full -mt-6 hazirRange"
-              style={{ zIndex: activeThumb === 'end' ? 3 : 2 }}
-            />
-          </div>
-
-          <div className="flex justify-between text-xs text-stone-500 mt-2">
-            <span>0:00</span>
-            <span>{formatTime(duration)}</span>
-          </div>
-        </div>
-      ) : (
-        <div className="mt-3 text-xs text-amber-700">
-          ⏳ Önizleme hazırlanıyor…
-        </div>
-      )}
+      <div className="flex justify-between text-xs text-stone-500">
+        <span>{formatTime(0)}</span>
+        <span>{formatTime(duration)}</span>
+      </div>
     </div>
   );
 }
+
 
 
 function YouTubeRangePicker({ ytDurationSec, formData, setFormData }) {
