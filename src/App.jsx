@@ -1132,38 +1132,26 @@ function HazirMuzikMulti({ formData, setFormData }) {
 }
 
 
-
 function HazirClipTrimmer({ clip, onRemove, onUpdate }) {
   const audioRef = useRef(null);
   const [isPlaying, setIsPlaying] = useState(false);
+  const [activeThumb, setActiveThumb] = useState(null);
 
-  /* =======================
-     AYARLANABİLİR PENCERE
-     ======================= */
-  const WINDOW_OPTIONS = [5, 10, 15, 20]; // saniye
-  const [windowSec, setWindowSec] = useState(10);
+  const MIN_GAP_LOCAL = 0.05;     // DosyaTrimmer ile aynı mantık
+  const STEP_NORMAL = 0.05;
+  const STEP_FINE_LOCAL = typeof STEP_FINE !== 'undefined' ? STEP_FINE : 0.005;
 
-  /* =======================
-     TEMEL DEĞERLER
-     ======================= */
   const duration = Number(clip.songDur) || 0;
   const start = Number(clip.start) || 0;
-  const end = Number(clip.end) || Math.min(duration, start + windowSec);
+  const end = Number(clip.end) || Math.max(0.5, start + 0.5);
 
-  const center = start + (end - start) / 2;
-
-  /* =======================
-     FORMAT
-     ======================= */
   const formatTime = (s) => {
     const m = Math.floor(s / 60);
     const sec = Math.floor(s % 60);
     return `${m}:${String(sec).padStart(2, '0')}`;
   };
 
-  /* =======================
-     METADATA OKUMA
-     ======================= */
+  // Metadata: duration'ı clip'e yaz
   useEffect(() => {
     const a = audioRef.current;
     if (!a) return;
@@ -1172,30 +1160,35 @@ function HazirClipTrimmer({ clip, onRemove, onUpdate }) {
       const dur = a.duration || 0;
       if (!dur || !Number.isFinite(dur)) return;
 
-      if (!clip.songDur || Math.abs(clip.songDur - dur) > 0.01) {
-        const safeEnd = Math.min(dur, windowSec);
-        onUpdate({
-          songDur: dur,
-          start: 0,
-          end: safeEnd,
-        });
+      // start/end'i duration'a göre güvenli hale getir
+      const safeStart = Math.max(0, Math.min(start, Math.max(0, dur - 0.5)));
+      const safeEnd = Math.max(safeStart + 0.5, Math.min(end || dur, dur));
+
+      if (!clip.songDur || Math.abs(Number(clip.songDur) - dur) > 0.01) {
+        onUpdate({ songDur: dur, start: safeStart, end: safeEnd });
+      } else {
+        // duration aynı olsa bile taşma varsa düzelt
+        if (safeStart !== start || safeEnd !== end) {
+          onUpdate({ start: safeStart, end: safeEnd });
+        }
       }
     };
 
     a.addEventListener('loadedmetadata', onMeta);
     return () => a.removeEventListener('loadedmetadata', onMeta);
-  }, [clip.id, windowSec]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [clip.clipId, clip.id, clip.toyUrl]); // sende clipId var, bazen id oluyor; ikisini de koydum
 
-  /* =======================
-     PLAY KONTROL
-     ======================= */
+  // Play: sadece trim aralığında çalsın
   useEffect(() => {
     const a = audioRef.current;
     if (!a) return;
 
     const onTime = () => {
       if (!isPlaying) return;
+
       if (a.currentTime < start) a.currentTime = start;
+
       if (a.currentTime >= end) {
         a.pause();
         a.currentTime = start;
@@ -1203,135 +1196,262 @@ function HazirClipTrimmer({ clip, onRemove, onUpdate }) {
       }
     };
 
+    const onEnded = () => {
+      setIsPlaying(false);
+      try { a.currentTime = start; } catch {}
+    };
+
     a.addEventListener('timeupdate', onTime);
-    return () => a.removeEventListener('timeupdate', onTime);
+    a.addEventListener('ended', onEnded);
+    return () => {
+      a.removeEventListener('timeupdate', onTime);
+      a.removeEventListener('ended', onEnded);
+    };
   }, [isPlaying, start, end]);
 
-  /* =======================
-     TEK SLIDER → CENTER
-     ======================= */
-  const handleCenterChange = (val) => {
-    const half = windowSec / 2;
+  const togglePlay = async () => {
+    const a = audioRef.current;
+    if (!a || !duration) return;
 
-    let newStart = val - half;
-    let newEnd = val + half;
-
-    if (newStart < 0) {
-      newStart = 0;
-      newEnd = windowSec;
+    if (isPlaying) {
+      a.pause();
+      setIsPlaying(false);
+      return;
     }
 
-    if (newEnd > duration) {
-      newEnd = duration;
-      newStart = Math.max(0, duration - windowSec);
-    }
-
-    onUpdate({ start: newStart, end: newEnd });
-
-    if (audioRef.current && isPlaying) {
-      audioRef.current.currentTime = newStart;
+    try {
+      a.currentTime = start;
+      await a.play();
+      setIsPlaying(true);
+    } catch (e) {
+      console.error(e);
+      setIsPlaying(false);
+      alert('Tarayıcı ses çalmayı engelledi. Play’e tekrar bas.');
     }
   };
 
-  /* =======================
-     GÖRSEL YÜZDELER
-     ======================= */
+  const snap = (val, step) => Math.round(val / step) * step;
+  const getStep = (e) => (e.shiftKey ? STEP_FINE_LOCAL : STEP_NORMAL);
+
+  const handleStartChange = (e) => {
+    const step = getStep(e);
+    const raw = parseFloat(e.target.value);
+    const value = snap(raw, step);
+
+    const nextStart = Math.max(0, Math.min(value, end - MIN_GAP_LOCAL));
+    onUpdate({ start: nextStart });
+
+    if (audioRef.current && isPlaying) {
+      audioRef.current.currentTime = nextStart;
+    }
+  };
+
+  const handleEndChange = (e) => {
+    const step = getStep(e);
+    const raw = parseFloat(e.target.value);
+    const value = snap(raw, step);
+
+    const nextEnd = Math.min(
+      duration,
+      Math.max(value, start + MIN_GAP_LOCAL)
+    );
+    onUpdate({ end: nextEnd });
+  };
+
+  const handleWheel = (type, e) => {
+    e.preventDefault();
+    const step = e.shiftKey ? STEP_FINE_LOCAL : STEP_NORMAL;
+    const dir = e.deltaY < 0 ? step : -step;
+
+    if (type === 'start') {
+      const nextStart = Math.max(0, Math.min(start + dir, end - MIN_GAP_LOCAL));
+      onUpdate({ start: nextStart });
+      if (audioRef.current && isPlaying) audioRef.current.currentTime = nextStart;
+    } else {
+      const nextEnd = Math.min(duration, Math.max(end + dir, start + MIN_GAP_LOCAL));
+      onUpdate({ end: nextEnd });
+    }
+  };
+
+  const selectedDuration = Math.max(0, end - start);
+
   const startPct = duration ? (start / duration) * 100 : 0;
   const endPct = duration ? (end / duration) * 100 : 0;
 
-  /* =======================
-     UI
-     ======================= */
   return (
-    <div className="bg-white border border-amber-200 rounded-xl p-4 space-y-3">
-      <audio ref={audioRef} src={clip.toyUrl} preload="metadata" />
+    <div className="bg-white border border-amber-200 rounded-xl p-4">
+      {/* DosyaTrimmer'daki gibi CSS'yi inline veriyorum ki "nokta gibi" olmasın */}
+      <style>{`
+        .hazirTrimRange{
+          -webkit-appearance:none;
+          appearance:none;
+          width:100%;
+          height:26px;
+          background:transparent;
+          pointer-events:none;
+          position:absolute;
+          left:0;
+          top:-10px;
+        }
+        .hazirTrimRange::-webkit-slider-runnable-track{
+          height:0px;
+          background:transparent;
+          border:none;
+        }
+        .hazirTrimRange::-webkit-slider-thumb{
+          -webkit-appearance:none;
+          appearance:none;
+          width:18px;
+          height:18px;
+          border-radius:9999px;
+          background:white;
+          border:2px solid #b45309;
+          box-shadow:0 1px 3px rgba(0,0,0,0.25);
+          pointer-events:auto;
+          cursor:grab;
+        }
+        .hazirTrimRange.end::-webkit-slider-thumb{
+          border-color:#92400e;
+        }
+        .hazirTrimRange::-moz-range-track{ background:transparent; border:none; }
+        .hazirTrimRange::-moz-range-thumb{
+          width:18px;height:18px;border-radius:9999px;
+          background:white;border:2px solid #b45309;
+          box-shadow:0 1px 3px rgba(0,0,0,0.25);
+          pointer-events:auto;cursor:grab;
+        }
+        .hazirTrimRange.end::-moz-range-thumb{ border-color:#92400e; }
+      `}</style>
 
-      {/* ÜST */}
-      <div className="flex justify-between items-center">
+      {/* ÜST BAR */}
+      <div className="flex items-center justify-between gap-3">
         <div className="text-sm font-semibold text-stone-800 truncate">
           {clip.title}
         </div>
+
         <button
-          onClick={onRemove}
-          className="p-2 rounded-full bg-red-100 hover:bg-red-200"
+          type="button"
+          onClick={() => {
+            try { audioRef.current?.pause?.(); } catch {}
+            setIsPlaying(false);
+            onRemove?.();
+          }}
+          className="p-2 rounded-full bg-red-100 hover:bg-red-200 transition flex-shrink-0"
+          title="Sil"
         >
-          ✕
+          <X className="w-4 h-4 text-red-600" />
         </button>
       </div>
 
-      {/* PLAY */}
-      <div className="flex items-center gap-3">
-        <button
-          onClick={async () => {
-            const a = audioRef.current;
-            if (!a) return;
+      {/* AUDIO + PLAY */}
+      <div className="mt-3">
+        <div className="text-xs font-semibold text-stone-700 mb-1">
+          Oyuncakta Duyulacak (16 kHz)
+        </div>
 
-            if (isPlaying) {
-              a.pause();
-              setIsPlaying(false);
-              return;
-            }
+        <audio ref={audioRef} src={clip.toyUrl} preload="metadata" />
 
-            a.currentTime = start;
-            await a.play();
-            setIsPlaying(true);
-          }}
-          className="p-2 rounded-full bg-amber-100 hover:bg-amber-200"
-        >
-          {isPlaying ? '⏸' : '▶'}
-        </button>
+        <div className="flex items-center justify-between mt-2">
+          <button
+            type="button"
+            onClick={togglePlay}
+            disabled={!duration}
+            className={`p-2 rounded-full transition ${
+              duration ? 'bg-amber-100 hover:bg-amber-200' : 'bg-stone-100 opacity-50 cursor-not-allowed'
+            }`}
+            title={isPlaying ? 'Durdur' : 'Oynat'}
+          >
+            {isPlaying ? (
+              <Pause className="w-4 h-4 text-amber-800" />
+            ) : (
+              <Play className="w-4 h-4 text-amber-800" />
+            )}
+          </button>
 
-        <div className="text-xs text-stone-600">
-          Seçili: <b>{formatTime(end - start)}</b>
+          <div className="text-xs text-stone-600">
+            Başlangıç: <b>{formatTime(start)}</b> • Bitiş: <b>{formatTime(end)}</b> • Seçili: <b>{formatTime(selectedDuration)}</b>
+          </div>
+        </div>
+
+        <div className="text-[11px] text-stone-500 mt-1">
+          İpucu: Hassas ayar için <b>SHIFT</b> basılıyken sürükle / tekerlek
         </div>
       </div>
 
-      {/* PENCERE SEÇİMİ */}
-      <div className="flex gap-2 text-xs">
-        {WINDOW_OPTIONS.map((w) => (
-          <button
-            key={w}
-            onClick={() => setWindowSec(w)}
-            className={`px-3 py-1 rounded-full border ${
-              windowSec === w
-                ? 'bg-amber-700 text-white'
-                : 'bg-amber-50'
-            }`}
-          >
-            {w} sn
-          </button>
-        ))}
-      </div>
+      {/* SLIDER */}
+      {duration > 0 ? (
+        <div className="space-y-3 mt-4">
+          {/* Gradient bar */}
+          <div
+            className="h-2 rounded-lg bg-stone-200"
+            style={{
+              background: `linear-gradient(to right,
+                #e7e5e4 0%,
+                #e7e5e4 ${startPct}%,
+                #b45309 ${startPct}%,
+                #b45309 ${endPct}%,
+                #e7e5e4 ${endPct}%,
+                #e7e5e4 100%)`,
+            }}
+          />
 
-      {/* BAR */}
-      <div
-        className="h-2 rounded bg-stone-200"
-        style={{
-          background: `linear-gradient(to right,
-            #e7e5e4 0%,
-            #e7e5e4 ${startPct}%,
-            #b45309 ${startPct}%,
-            #b45309 ${endPct}%,
-            #e7e5e4 ${endPct}%,
-            #e7e5e4 100%)`,
-        }}
-      />
+          {/* Çift range üst üste */}
+          <div className="relative mt-2 pt-7">
+            <div
+              className="absolute -top-1 text-[11px] px-2 py-1 rounded-md bg-amber-700 text-white shadow"
+              style={{ left: `${startPct}%`, transform: 'translateX(-50%)' }}
+            >
+              {formatTime(start)}
+            </div>
 
-      {/* TEK SLIDER */}
-      <input
-        type="range"
-        min={windowSec / 2}
-        max={Math.max(windowSec / 2, duration - windowSec / 2)}
-        step={0.01}
-        value={center}
-        onChange={(e) => handleCenterChange(Number(e.target.value))}
-        className="w-full hazirRange"
-      />
+            <div
+              className="absolute -top-1 text-[11px] px-2 py-1 rounded-md bg-amber-800 text-white shadow"
+              style={{ left: `${endPct}%`, transform: 'translateX(-50%)' }}
+            >
+              {formatTime(end)}
+            </div>
 
-      <div className="flex justify-between text-xs text-stone-500">
-        <span>{formatTime(0)}</span>
-        <span>{formatTime(duration)}</span>
-      </div>
+            <input
+              type="range"
+              min="0"
+              max={Math.max(0, duration - MIN_GAP_LOCAL)}
+              step={STEP_FINE_LOCAL}
+              value={start}
+              onPointerDown={() => setActiveThumb('start')}
+              onMouseDown={() => setActiveThumb('start')}
+              onTouchStart={() => setActiveThumb('start')}
+              onWheel={(e) => handleWheel('start', e)}
+              onChange={handleStartChange}
+              className="w-full hazirTrimRange start"
+              style={{ zIndex: activeThumb === 'start' ? 3 : 2 }}
+            />
+
+            <input
+              type="range"
+              min={MIN_GAP_LOCAL}
+              max={duration}
+              step={STEP_FINE_LOCAL}
+              value={end}
+              onPointerDown={() => setActiveThumb('end')}
+              onMouseDown={() => setActiveThumb('end')}
+              onTouchStart={() => setActiveThumb('end')}
+              onWheel={(e) => handleWheel('end', e)}
+              onChange={handleEndChange}
+              className="w-full -mt-6 hazirTrimRange end"
+              style={{ zIndex: activeThumb === 'end' ? 3 : 2 }}
+            />
+          </div>
+
+          <div className="flex justify-between text-xs text-stone-500 mt-2">
+            <span>{formatTime(0)}</span>
+            <span>{formatTime(duration)}</span>
+          </div>
+        </div>
+      ) : (
+        <div className="mt-3 text-xs text-amber-700">
+          ⏳ Önizleme hazırlanıyor... (toyUrl doğruysa 1–2 sn içinde slider gelir)
+        </div>
+      )}
     </div>
   );
 }
