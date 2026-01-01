@@ -246,7 +246,7 @@ export default function SesliOyuncakSiparis() {
    const fileDialogOpenRef = useRef(false);
 const fileInputRef = useRef(null);
    const fmtSec2 = (n) => (Math.max(0, Number(n) || 0)).toFixed(2);
-        const remaining = Math.max(0, MAX_TOTAL_SEC - totalSec);
+       
 const fileInputRef2 = useRef(null);
   const [activeTab, setActiveTab] = useState('hazir');
  const [ytDurationSec, setYtDurationSec] = useState(null);
@@ -266,7 +266,7 @@ const [formData, setFormData] = useState({
   const totalSec = useMemo(() => {
     return (formData.hazirClips || []).reduce((sum, c) => sum + Math.max(0, c.end - c.start), 0);
   }, [formData.hazirClips]);
-   
+    const remaining = Math.max(0, MAX_TOTAL_SEC - totalSec);
    const clearUploads = (uploads = []) => {
   uploads.forEach((f) => {
     try { if (f?.url) URL.revokeObjectURL(f.url); } catch {}
