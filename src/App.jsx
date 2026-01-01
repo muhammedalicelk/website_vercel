@@ -818,7 +818,7 @@ onChange={(v) => setFormData(p => ({ ...p, telefon: v }))}
       {/* 310 sn uyarısı (sadece internet + geçerli videoId) */}
       {internetVideoId && ytDurationSec && ytDurationSec > 310 && (
         <div className="mt-3 bg-red-50 border border-red-200 rounded-lg p-3 text-xs text-red-700">
-          Bu video <b>310 sn’den uzun</b>. Lütfen ya dosya yükleyin ya da aşağıdan süre aralığı seçin.
+          Bu video <b>310 sn’den uzundur</b>. Lütfen ses dosyasını yükleyiniz ya da aşağıdan süre aralığını seçiniz.
         </div>
       )}
 
