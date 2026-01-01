@@ -270,16 +270,17 @@ const [formData, setFormData] = useState({
 
 const resetByTab = (tab) => {
   setFormData((p) => {
-    // önce mevcut upload url’lerini temizleyeceksek burada yakalayalım
     const prevUploads = p.yukluDosyalar || [];
 
-    // her tab geçişinde: youtube duration/alanlarını da kontrol edeceğiz (state dışında da var)
-    // (ytDurationSec zaten ayrı state, onu aşağıda useEffect’te set edeceğiz)
+    // Dosya URL'lerini serbest bırak
+    prevUploads.forEach((f) => {
+      try { if (f?.url) URL.revokeObjectURL(f.url); } catch {}
+      try { if (f?.preview16kUrl) URL.revokeObjectURL(f.preview16kUrl); } catch {}
+    });
+
     if (tab === 'hazir') {
-      clearUploads(prevUploads);
       return {
         ...p,
-        hazirClips: p.hazirClips || [],
         yukluDosyalar: [],
         youtubeLink: '',
         ytStartSec: '',
@@ -294,33 +295,42 @@ const resetByTab = (tab) => {
         youtubeLink: '',
         ytStartSec: '',
         ytEndSec: '',
-        // uploads kalsın (çünkü dosya tabı)
-        yukluDosyalar: p.yukluDosyalar || [],
       };
     }
 
     if (tab === 'internet') {
-      // internet sekmesinde dosya göstermek istemiyorsun => temizle
-      clearUploads(prevUploads);
       return {
         ...p,
         hazirClips: [],
         yukluDosyalar: [],
-        // youtube alanları internet için kalsın
-        youtubeLink: p.youtubeLink || '',
-        ytStartSec: p.ytStartSec || '',
-        ytEndSec: p.ytEndSec || '',
       };
     }
 
     return p;
   });
+
+  // yan state'ler
+  setYtDurationSec(null);
+  setActiveTab(tab);
 };
+
+useEffect(() => {
+  const cleanupAfterFileDialog = () => {
+    if (!fileDialogOpenRef.current) return;
+    fileDialogOpenRef.current = false;
+
+    setTimeout(() => {
+      fileInputRef.current?.blur?.();
+      fileInputRef2.current?.blur?.();
+      if (document.activeElement && document.activeElement !== document.body) {
+        document.activeElement.blur?.();
+      }
+    }, 0);
+  };
 
   const onFocus = () => cleanupAfterFileDialog();
 
   const onVisibility = () => {
-    // sayfa yeniden görünür olunca (file dialog kapanınca) tetiklenir
     if (document.visibilityState === 'visible') cleanupAfterFileDialog();
   };
 
@@ -348,6 +358,7 @@ const resetByTab = (tab) => {
     setFormData((p) => ({ ...p, ytStartSec: '', ytEndSec: '' }));
   }
 }, [internetVideoId]);
+
   useEffect(() => {
   const cleanupAfterFileDialog = () => {
     if (!fileDialogOpenRef.current) return;
@@ -364,8 +375,6 @@ const resetByTab = (tab) => {
 
 useEffect(() => {
   if (window.YT && window.YT.Player) return;
-
-  // zaten ekliysek tekrar ekleme
   if (document.querySelector('script[data-yt-iframe-api="1"]')) return;
 
   const tag = document.createElement('script');
@@ -721,26 +730,23 @@ onChange={(v) => setFormData(p => ({ ...p, telefon: v }))}
               </div>
 
               <div className="flex gap-2 mb-6 flex-wrap">
-                <TabButton
+              <TabButton
   active={activeTab === 'hazir'}
-onClick={() => handleTabChange('hazir')}
-  icon={<Music className="w-4 h-4" />}
+  onClick={() => resetByTab('hazir')}
 >
   Hazır
 </TabButton>
 
 <TabButton
   active={activeTab === 'yukle'}
-  onClick={() => handleTabChange('yukle')}
-  icon={<Upload className="w-4 h-4" />}
+  onClick={() => resetByTab('yukle')}
 >
   Dosya
 </TabButton>
 
 <TabButton
   active={activeTab === 'internet'}
- onClick={() => handleTabChange('internet')}
-  icon={<Globe className="w-4 h-4" />}
+  onClick={() => resetByTab('internet')}
 >
   İnternet
 </TabButton>
