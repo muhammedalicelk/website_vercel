@@ -977,7 +977,7 @@ function HazirMuzikMulti({ formData, setFormData }) {
     }));
   };
 
-  onst removeClip = (clipId) => {
+  const removeClip = (clipId) => {
   setFormData((p) => ({
     ...p,
     hazirClips: (p.hazirClips || []).filter((c) => c.id !== clipId),
