@@ -269,9 +269,11 @@ const [formData, setFormData] = useState({
 };
 
 const resetByTab = (tab) => {
+
   setFormData((p) => {
     const prevUploads = p.yukluDosyalar || [];
 
+clearUploads(prevUploads);
     // Dosya URL'lerini serbest bırak
     prevUploads.forEach((f) => {
       try { if (f?.url) URL.revokeObjectURL(f.url); } catch {}
@@ -329,7 +331,6 @@ useEffect(() => {
   };
 
   const onFocus = () => cleanupAfterFileDialog();
-
   const onVisibility = () => {
     if (document.visibilityState === 'visible') cleanupAfterFileDialog();
   };
@@ -358,20 +359,6 @@ useEffect(() => {
     setFormData((p) => ({ ...p, ytStartSec: '', ytEndSec: '' }));
   }
 }, [internetVideoId]);
-
-  useEffect(() => {
-  const cleanupAfterFileDialog = () => {
-    if (!fileDialogOpenRef.current) return;
-    fileDialogOpenRef.current = false;
-
-    setTimeout(() => {
-      fileInputRef.current?.blur?.();
-      fileInputRef2.current?.blur?.();
-      if (document.activeElement && document.activeElement !== document.body) {
-        document.activeElement.blur?.();
-      }
-    }, 0);
-  };
 
 useEffect(() => {
   if (window.YT && window.YT.Player) return;
