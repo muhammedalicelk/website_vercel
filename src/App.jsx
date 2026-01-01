@@ -730,12 +730,13 @@ onChange={(v) => setFormData(p => ({ ...p, telefon: v }))}
               </div>
 
 <div className="bg-amber-50/30 rounded-xl p-6 border border-amber-100">
-  {/* HAZIR */}
-   {activeTab === 'hazir' && (
- <div className="mb-3 text-xs text-stone-700">
-  Toplam: <b>{fmtSec2(totalSec)} sn</b> • Kalan: <b>{fmtSec2(MAX_TOTAL_SEC - totalSec)} sn</b>
-</div
+ {activeTab === 'hazir' && (
+  <div className="mb-3 text-xs text-stone-700">
+    Toplam: <b>{fmtSec2(totalSec)} sn</b> • Kalan:{' '}
+    <b>{fmtSec2(MAX_TOTAL_SEC - totalSec)} sn</b>
+  </div>
 )}
+
   {activeTab === 'hazir' && (
   <HazirMuzikMulti
     formData={formData}
