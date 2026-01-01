@@ -722,7 +722,7 @@ onChange={(v) => setFormData(p => ({ ...p, telefon: v }))}
               <div className="flex gap-2 mb-6 flex-wrap">
                 <TabButton
   active={activeTab === 'hazir'}
-onClick={() => handleTabChange('yukle')}
+onClick={() => handleTabChange('hazir')}
   icon={<Music className="w-4 h-4" />}
 >
   Hazır
@@ -738,7 +738,7 @@ onClick={() => handleTabChange('yukle')}
 
 <TabButton
   active={activeTab === 'internet'}
- onClick={() => handleTabChange('yukle')}
+ onClick={() => handleTabChange('internet')}
   icon={<Globe className="w-4 h-4" />}
 >
   İnternet
