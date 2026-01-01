@@ -939,7 +939,6 @@ function TabButton({ active, onClick, children, icon }) {
 /* =========================================================
    UI HELPERS
    ========================================================= */
-
 function HazirMuzikMulti({ formData, setFormData }) {
   const [query, setQuery] = React.useState('');
   const [selectedSongId, setSelectedSongId] = React.useState('');
@@ -958,19 +957,39 @@ function HazirMuzikMulti({ formData, setFormData }) {
     const song = SONGS.find((s) => s.id === selectedSongId);
     if (!song) return;
 
-    // Varsayılan aralık: 0-10sn (istersen değiştir)
     const clip = {
       id: (crypto?.randomUUID?.() || String(Date.now()) + Math.random()),
       title: song.title,
       youtubeId: song.youtubeId,
       start: 0,
       end: 10,
-      toyOk: true, // sende kontrol ediyorsun diye true yaptım
+      toyOk: true,
+
+      // 🔴 BUNU KENDİ YAPINA GÖRE DOLDUR
+      // Eğer song içinde hazır 16k preview url varsa onu koy:
+      toyUrl: song.toyUrl || song.previewUrl || song.preview16kUrl || '',
+      songDur: song.durationSec || 0, // yoksa 0 kalsın, audio metadata ile dolduruluyor
     };
 
     setFormData((p) => ({
       ...p,
       hazirClips: [...(p.hazirClips || []), clip],
+    }));
+  };
+
+  const removeClip = (clipId) => {
+    setFormData((p) => ({
+      ...p,
+      hazirClips: (p.hazirClips || []).filter((c) => c.id !== clipId),
+    }));
+  };
+
+  const updateClip = (clipId, patch) => {
+    setFormData((p) => ({
+      ...p,
+      hazirClips: (p.hazirClips || []).map((c) =>
+        c.id === clipId ? { ...c, ...patch } : c
+      ),
     }));
   };
 
@@ -1010,16 +1029,19 @@ function HazirMuzikMulti({ formData, setFormData }) {
       </div>
 
       <div className="mt-5">
-        <div className="text-sm font-semibold text-stone-800 mb-2">Seçilen Parçalar:</div>
+        <div className="text-sm font-semibold text-stone-800 mb-2">Seçilen Parçalar (kırpılabilir):</div>
 
         {(formData.hazirClips || []).length === 0 ? (
           <div className="text-xs text-stone-500">Henüz eklenmedi.</div>
         ) : (
-          <div className="space-y-2">
-            {(formData.hazirClips || []).map((c) => (
-              <div key={c.id} className="text-sm text-stone-700">
-                • {c.title} ({c.start}-{c.end})
-              </div>
+          <div className="space-y-4">
+            {(formData.hazirClips || []).map((clip) => (
+              <HazirClipTrimmer
+                key={clip.id}
+                clip={clip}
+                onRemove={() => removeClip(clip.id)}
+                onUpdate={(patch) => updateClip(clip.id, patch)}
+              />
             ))}
           </div>
         )}
@@ -1027,6 +1049,7 @@ function HazirMuzikMulti({ formData, setFormData }) {
     </div>
   );
 }
+
 
 function HazirClipTrimmer({ clip, onRemove, onUpdate }) {
 
@@ -1177,9 +1200,7 @@ useEffect(() => {
   </button>
 </div>
 
-     <div className="text-sm font-semibold text-stone-800 truncate">
-  {clip.title}
-</div>
+
     <div className="bg-white border border-amber-200 rounded-xl p-4">
 <audio key={clip.clipId} ref={audioRef} src={clip.toyUrl} preload="metadata" />
 <div className="flex items-center justify-between mt-2">
