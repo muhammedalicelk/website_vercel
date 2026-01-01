@@ -242,10 +242,11 @@ Amaç kullanıcı geri bildirimi ve ürün geliştirmedir. Fatura düzenlenmemek
 Katılım bedeli ve kargo daha sonraki aşamada paylaşılacaktır.`;
 
 export default function SesliOyuncakSiparis() {
-     const remaining = Math.max(0, MAX_TOTAL_SEC - totalSec);
+
    const fileDialogOpenRef = useRef(false);
 const fileInputRef = useRef(null);
    const fmtSec2 = (n) => (Math.max(0, Number(n) || 0)).toFixed(2);
+        const remaining = Math.max(0, MAX_TOTAL_SEC - totalSec);
 const fileInputRef2 = useRef(null);
   const [activeTab, setActiveTab] = useState('hazir');
  const [ytDurationSec, setYtDurationSec] = useState(null);
