@@ -244,6 +244,7 @@ Katılım bedeli ve kargo daha sonraki aşamada paylaşılacaktır.`;
 export default function SesliOyuncakSiparis() {
    const fileDialogOpenRef = useRef(false);
 const fileInputRef = useRef(null);
+   const fmtSec2 = (n) => (Math.max(0, Number(n) || 0)).toFixed(2);
 const fileInputRef2 = useRef(null);
   const [activeTab, setActiveTab] = useState('hazir');
  const [ytDurationSec, setYtDurationSec] = useState(null);
@@ -1115,7 +1116,7 @@ function HazirClipTrimmer({ clip, onRemove, onUpdate }) {
   const audioRef = useRef(null);
   const [isPlaying, setIsPlaying] = useState(false);
   const [activeThumb, setActiveThumb] = useState(null);
-const fmtSec2 = (n) => (Math.max(0, Number(n) || 0)).toFixed(2);
+
   const duration = clip.songDur || 0;
   const start = clip.start || 0;
   const end = clip.end || Math.max(0.5, start + 0.5);
