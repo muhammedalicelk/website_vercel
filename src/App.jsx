@@ -269,49 +269,39 @@ const [formData, setFormData] = useState({
 };
 
 const resetByTab = (tab) => {
-
   setFormData((p) => {
     const prevUploads = p.yukluDosyalar || [];
 
-clearUploads(prevUploads);
-    // Dosya URL'lerini serbest bırak
+    // her tab değişiminde upload url temizle
     prevUploads.forEach((f) => {
       try { if (f?.url) URL.revokeObjectURL(f.url); } catch {}
       try { if (f?.preview16kUrl) URL.revokeObjectURL(f.preview16kUrl); } catch {}
     });
 
-    if (tab === 'hazir') {
-      return {
-        ...p,
-        yukluDosyalar: [],
-        youtubeLink: '',
-        ytStartSec: '',
-        ytEndSec: '',
-      };
+    // her şey sıfırlanır (musteriAdi/telefon kalsın)
+    const base = {
+      ...p,
+      hazirClips: [],
+      yukluDosyalar: [],
+      youtubeLink: '',
+      ytStartSec: '',
+      ytEndSec: '',
+    };
+
+    // sadece hangi tab'a geçtiğine göre "gerekli alanları" açık bırak
+    if (tab === 'internet') {
+      // internet'e girerken isterse link boş kalsın zaten
+      return base;
     }
 
     if (tab === 'yukle') {
-      return {
-        ...p,
-        hazirClips: [],
-        youtubeLink: '',
-        ytStartSec: '',
-        ytEndSec: '',
-      };
+      return base;
     }
 
-    if (tab === 'internet') {
-      return {
-        ...p,
-        hazirClips: [],
-        yukluDosyalar: [],
-      };
-    }
-
-    return p;
+    // hazir
+    return base;
   });
 
-  // yan state'ler
   setYtDurationSec(null);
   setActiveTab(tab);
 };
