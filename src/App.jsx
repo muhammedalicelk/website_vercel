@@ -977,21 +977,21 @@ function HazirMuzikMulti({ formData, setFormData }) {
     }));
   };
 
-  const removeClip = (clipId) => {
-    setFormData((p) => ({
-      ...p,
-      hazirClips: (p.hazirClips || []).filter((c) => c.id !== clipId),
-    }));
-  };
+  onst removeClip = (clipId) => {
+  setFormData((p) => ({
+    ...p,
+    hazirClips: (p.hazirClips || []).filter((c) => c.id !== clipId),
+  }));
+};
 
-  const updateClip = (clipId, patch) => {
-    setFormData((p) => ({
-      ...p,
-      hazirClips: (p.hazirClips || []).map((c) =>
-        c.id === clipId ? { ...c, ...patch } : c
-      ),
-    }));
-  };
+const updateClip = (clipId, patch) => {
+  setFormData((p) => ({
+    ...p,
+    hazirClips: (p.hazirClips || []).map((c) =>
+      c.id === clipId ? { ...c, ...patch } : c
+    ),
+  }));
+};
 
   return (
     <div>
@@ -1028,24 +1028,26 @@ function HazirMuzikMulti({ formData, setFormData }) {
         </button>
       </div>
 
-      <div className="mt-5">
-        <div className="text-sm font-semibold text-stone-800 mb-2">Seçilen Parçalar (kırpılabilir):</div>
+<div className="mt-5">
+  <div className="text-sm font-semibold text-stone-800 mb-2">
+    Seçilen Parçalar (kırpılabilir):
+  </div>
 
-        {(formData.hazirClips || []).length === 0 ? (
-          <div className="text-xs text-stone-500">Henüz eklenmedi.</div>
-        ) : (
-          <div className="space-y-4">
-            {(formData.hazirClips || []).map((clip) => (
-              <HazirClipTrimmer
-                key={clip.id}
-                clip={clip}
-                onRemove={() => removeClip(clip.id)}
-                onUpdate={(patch) => updateClip(clip.id, patch)}
-              />
-            ))}
-          </div>
-        )}
-      </div>
+  {(formData.hazirClips || []).length === 0 ? (
+    <div className="text-xs text-stone-500">Henüz eklenmedi.</div>
+  ) : (
+    <div className="space-y-4">
+      {(formData.hazirClips || []).map((clip) => (
+        <HazirClipTrimmer
+          key={clip.id}
+          clip={clip}
+          onRemove={() => removeClip(clip.id)}
+          onUpdate={(patch) => updateClip(clip.id, patch)}
+        />
+      ))}
+    </div>
+  )}
+</div>
     </div>
   );
 }
