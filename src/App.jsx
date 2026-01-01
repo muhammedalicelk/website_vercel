@@ -1130,6 +1130,33 @@ const fmtSec2 = (n) => (Math.max(0, Number(n) || 0)).toFixed(2);
     return `${m}:${String(sec).padStart(2, '0')}`;
   };
    useEffect(() => {
+  const a = audioRef.current;
+  if (!a) return;
+
+  const onPlay = () => {
+    // play'e basınca start'a çek
+    if (a.currentTime < start || a.currentTime > end) {
+      a.currentTime = start;
+    }
+  };
+
+  const onTime = () => {
+    // kullanıcı scrub yapsa bile aralığın dışına çıkmasın
+    if (a.currentTime < start) a.currentTime = start;
+    if (a.currentTime >= end) {
+      a.pause();
+      a.currentTime = start;
+    }
+  };
+
+  a.addEventListener('play', onPlay);
+  a.addEventListener('timeupdate', onTime);
+  return () => {
+    a.removeEventListener('play', onPlay);
+    a.removeEventListener('timeupdate', onTime);
+  };
+}, [start, end]);
+   useEffect(() => {
   return () => {
     const a = audioRef.current;
     try { a?.pause?.(); } catch {}
