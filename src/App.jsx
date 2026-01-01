@@ -725,11 +725,7 @@ onChange={(v) => setFormData(p => ({ ...p, telefon: v }))}
               <div className="flex gap-2 mb-6 flex-wrap">
                 <TabButton
   active={activeTab === 'hazir'}
-  onClick={() => {
-    resetByTab('hazir');
-    setYtDurationSec(null);
-    setActiveTab('hazir');
-  }}
+onClick={() => handleTabChange('yukle')}
   icon={<Music className="w-4 h-4" />}
 >
   Hazır
@@ -737,11 +733,7 @@ onChange={(v) => setFormData(p => ({ ...p, telefon: v }))}
 
 <TabButton
   active={activeTab === 'yukle'}
-  onClick={() => {
-    resetByTab('yukle');
-    setYtDurationSec(null);
-    setActiveTab('yukle');
-  }}
+  onClick={() => handleTabChange('yukle')}
   icon={<Upload className="w-4 h-4" />}
 >
   Dosya
@@ -749,12 +741,7 @@ onChange={(v) => setFormData(p => ({ ...p, telefon: v }))}
 
 <TabButton
   active={activeTab === 'internet'}
-  onClick={() => {
-    resetByTab('internet');
-    // internet’te duration yeni linkten okunacak
-    setYtDurationSec(null);
-    setActiveTab('internet');
-  }}
+ onClick={() => handleTabChange('yukle')}
   icon={<Globe className="w-4 h-4" />}
 >
   İnternet
