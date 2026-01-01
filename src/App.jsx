@@ -732,9 +732,9 @@ onChange={(v) => setFormData(p => ({ ...p, telefon: v }))}
 <div className="bg-amber-50/30 rounded-xl p-6 border border-amber-100">
   {/* HAZIR */}
    {activeTab === 'hazir' && (
-  <div className="mb-3 text-xs text-stone-700">
-    Toplam: <b>{Math.round(hazirTotalSec)} sn</b> • Kalan: <b>{Math.max(0, MAX_TOTAL_SEC - hazirTotalSec)} sn</b>
-  </div>
+ <div className="mb-3 text-xs text-stone-700">
+  Toplam: <b>{fmtSec2(totalSec)} sn</b> • Kalan: <b>{fmtSec2(MAX_TOTAL_SEC - totalSec)} sn</b>
+</div
 )}
   {activeTab === 'hazir' && (
   <HazirMuzikMulti
@@ -1048,10 +1048,7 @@ function HazirMuzikMulti({ formData, setFormData }) {
 
 return (
   <div>
-    <div className="mb-3 text-xs text-stone-700">
-      Toplam: <b>{Math.round(totalSec)} sn</b> • Kalan:{' '}
-      <b>{Math.max(0, Math.round(MAX_TOTAL_SEC - totalSec))} sn</b>
-    </div>
+
 
     <p className="text-sm text-stone-700 mb-3">Hazır müzik ekle (çoklu seçim):</p>
 
@@ -1117,7 +1114,7 @@ function HazirClipTrimmer({ clip, onRemove, onUpdate }) {
   const audioRef = useRef(null);
   const [isPlaying, setIsPlaying] = useState(false);
   const [activeThumb, setActiveThumb] = useState(null);
-
+const fmtSec2 = (n) => (Math.max(0, Number(n) || 0)).toFixed(2);
   const duration = clip.songDur || 0;
   const start = clip.start || 0;
   const end = clip.end || Math.max(0.5, start + 0.5);
@@ -1201,7 +1198,19 @@ useEffect(() => {
 
   return (
       <>
+<div className="mt-3">
+  <div className="text-xs font-semibold text-stone-700 mb-1">
+    Oyuncakta Duyulacak (16 kHz)
+  </div>
 
+  <audio
+    ref={audioRef}
+    src={clip.toyUrl}
+    preload="metadata"
+    controls
+    className="w-full"
+  />
+</div>
          <div className="flex items-center justify-between gap-3">
   <div className="text-sm font-semibold text-stone-800 truncate">
     {clip.title}
