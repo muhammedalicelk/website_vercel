@@ -1557,7 +1557,6 @@ const videoMax = Math.floor(
         ) : (
           <>
             <br />
-            Video süresi okunuyor... (gelince seçenekler genişler)
           </>
         )}
       </p>
