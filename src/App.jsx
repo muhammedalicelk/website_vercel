@@ -940,36 +940,91 @@ function TabButton({ active, onClick, children, icon }) {
    UI HELPERS
    ========================================================= */
 function HazirMuzikMulti({ formData, setFormData }) {
-  const [query, setQuery] = React.useState('');
-  const [selectedSongId, setSelectedSongId] = React.useState('');
+  const [query, setQuery] = useState('');
+  const [selectedSongId, setSelectedSongId] = useState('');
 
-  const filtered = React.useMemo(() => {
+  const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
     if (!q) return SONGS;
     return SONGS.filter((s) => {
-      const inTitle = (s.title || '').toLowerCase().includes(q);
-      const inTags = (s.tags || []).some((t) => (t || '').toLowerCase().includes(q));
+      const inTitle = s.title.toLowerCase().includes(q);
+      const inTags = (s.tags || []).some((t) => t.toLowerCase().includes(q));
       return inTitle || inTags;
     });
   }, [query]);
 
-  const addSelected = () => {
-    const song = SONGS.find((s) => s.id === selectedSongId);
-    if (!song) return;
+  const totalSec = useMemo(() => {
+    return (formData.hazirClips || []).reduce(
+      (sum, c) => sum + Math.max(0, (Number(c.end) || 0) - (Number(c.start) || 0)),
+      0
+    );
+  }, [formData.hazirClips]);
+
+  const remaining = Math.max(0, MAX_TOTAL_SEC - totalSec);
+  const selected = SONGS.find((s) => s.id === selectedSongId);
+
+  // mp3 duration oku
+  const readDuration = (url) =>
+    new Promise((resolve) => {
+      const a = new Audio();
+      a.preload = 'metadata';
+      a.src = url;
+      a.onloadedmetadata = () => resolve(a.duration || 0);
+      a.onerror = () => resolve(0);
+      a.load();
+    });
+
+  const headExists = async (url) => {
+    try {
+      const r = await fetch(url, { method: 'HEAD', cache: 'no-store' });
+      return !!r.ok;
+    } catch {
+      return false;
+    }
+  };
+
+  const addClip = async () => {
+    if (!selected) return;
+
+    // ✅ Eski mantık: kalan yoksa EKLEME
+    if (remaining < 0.5) {
+      alert('Toplam süre 310 sn sınırında. Yeni parça eklemek için önce bir parçayı kısaltın veya silin.');
+      return;
+    }
+
+    const toyUrl = `/previews16k/${selected.id}.mp3`;
+
+    // preview var mı?
+    const ok = await headExists(toyUrl);
+
+    // duration oku
+    const dur = await readDuration(toyUrl); // 0 olabilir
+
+    // ✅ Eski mantık: yeni clip uzunluğu KALAN kadar (ve şarkı süresi varsa onu da aşmasın)
+    const maxLenForNew = remaining; // burada 1sn gibi “zorlama” YOK
+    const endByRemaining = maxLenForNew;
+    const endByDur = dur > 0 ? dur : endByRemaining;
+    const end = Math.min(endByDur, endByRemaining);
 
     const clip = {
-      id: (crypto?.randomUUID?.() || String(Date.now()) + Math.random()),
-      title: song.title,
-      youtubeId: song.youtubeId,
+      clipId: makeId(),
+      songId: selected.id,
+      title: selected.title,
+      youtubeId: selected.youtubeId,
+      toyUrl,
+      songDur: dur || 0,
       start: 0,
-      end: 10,
-      toyOk: true,
-
-      // 🔴 BUNU KENDİ YAPINA GÖRE DOLDUR
-      // Eğer song içinde hazır 16k preview url varsa onu koy:
-      toyUrl: `/previews16k/${song.id}.mp3`,
-      songDur: song.durationSec || 0, // yoksa 0 kalsın, audio metadata ile dolduruluyor
+      end: Math.max(0.5, end), // min 0.5 sn
+      toyOk: ok,
+      tags: selected.tags || [],
     };
+
+    // ✅ ekstra güvenlik: ekleme total’i aşacaksa blokla
+    const addLen = Math.max(0, clip.end - clip.start);
+    if (totalSec + addLen > MAX_TOTAL_SEC + 0.01) {
+      alert('Bu ekleme toplam süreyi 310 sn üstüne çıkarır. Önce bir parçayı kısaltın.');
+      return;
+    }
 
     setFormData((p) => ({
       ...p,
@@ -978,39 +1033,68 @@ function HazirMuzikMulti({ formData, setFormData }) {
   };
 
   const removeClip = (clipId) => {
-  setFormData((p) => ({
-    ...p,
-    hazirClips: (p.hazirClips || []).filter((c) => c.id !== clipId),
-  }));
-};
+    setFormData((p) => ({
+      ...p,
+      hazirClips: (p.hazirClips || []).filter((c) => c.clipId !== clipId),
+    }));
+  };
 
-const updateClip = (clipId, patch) => {
-  setFormData((p) => ({
-    ...p,
-    hazirClips: (p.hazirClips || []).map((c) =>
-      c.id === clipId ? { ...c, ...patch } : c
-    ),
-  }));
-};
+  // ✅ Eski mantık: kırpma yapınca sadece O CLIP clamp’lensin, toplam 310’u aşmasın
+  const updateClip = (clipId, updates) => {
+    setFormData((p) => {
+      const clips = p.hazirClips || [];
+      const idx = clips.findIndex((c) => c.clipId === clipId);
+      if (idx < 0) return p;
+
+      const next = { ...clips[idx], ...updates };
+
+      const othersTotal = clips.reduce((sum, c, i) => {
+        if (i === idx) return sum;
+        return sum + Math.max(0, (Number(c.end) || 0) - (Number(c.start) || 0));
+      }, 0);
+
+      const maxLen = Math.max(0.5, MAX_TOTAL_SEC - othersTotal);
+      const minEnd = (Number(next.start) || 0) + 0.5;
+
+      const hardMaxEnd =
+        next.songDur && next.songDur > 0 ? next.songDur : Infinity;
+
+      const allowedEnd = Math.min((Number(next.start) || 0) + maxLen, hardMaxEnd);
+
+      if ((Number(next.end) || 0) > allowedEnd) next.end = allowedEnd;
+      if ((Number(next.end) || 0) < minEnd) next.end = minEnd;
+
+      const newClips = clips.slice();
+      newClips[idx] = next;
+
+      return { ...p, hazirClips: newClips };
+    });
+  };
 
   return (
     <div>
-      <div className="mb-3 text-sm text-stone-700">Hazır müzik ekle (çoklu seçim):</div>
+      {/* İstersen bunu kaldır (parent zaten gösteriyor) */}
+      <div className="mb-3 text-xs text-stone-700">
+        Toplam: <b>{Math.round(totalSec)} sn</b> • Kalan: <b>{Math.max(0, Math.round(MAX_TOTAL_SEC - totalSec))} sn</b>
+      </div>
+
+      <p className="text-sm text-stone-700 mb-3">Hazır müzik ekle (çoklu seçim):</p>
 
       <input
+        type="text"
         value={query}
         onChange={(e) => setQuery(e.target.value)}
-        placeholder="Ara: Şarkı ismi / Tür / Dil"
-        className="w-full px-4 py-3 border-2 border-amber-200 rounded-xl focus:border-amber-600 focus:outline-none transition bg-white mb-3"
+        className="w-full px-4 py-3 border-2 border-amber-200 rounded-xl focus:border-amber-600 focus:outline-none transition mb-3 bg-white"
+        placeholder="Ara: Şarkı İsmi / Tür / Dil"
       />
 
       <div className="flex gap-2">
         <select
           value={selectedSongId}
           onChange={(e) => setSelectedSongId(e.target.value)}
-          className="flex-1 px-4 py-3 border-2 border-amber-200 rounded-xl bg-white"
+          className="flex-1 px-4 py-3 border-2 border-amber-200 rounded-xl focus:border-amber-600 focus:outline-none transition bg-white"
         >
-          <option value="">Seç...</option>
+          <option value="">— Müzik seç —</option>
           {filtered.map((s) => (
             <option key={s.id} value={s.id}>
               {s.title}
@@ -1020,37 +1104,33 @@ const updateClip = (clipId, patch) => {
 
         <button
           type="button"
-          onClick={addSelected}
+          onClick={addClip}
           disabled={!selectedSongId}
-          className="px-5 py-3 rounded-xl font-semibold bg-amber-700 text-white disabled:bg-stone-300"
+          className={`px-4 rounded-xl font-semibold ${
+            selectedSongId ? 'bg-amber-700 text-white' : 'bg-stone-300 text-stone-500'
+          }`}
         >
           Ekle
         </button>
       </div>
 
-<div className="mt-5">
-  <div className="text-sm font-semibold text-stone-800 mb-2">
-    Seçilen Parçalar (kırpılabilir):
-  </div>
-
-  {(formData.hazirClips || []).length === 0 ? (
-    <div className="text-xs text-stone-500">Henüz eklenmedi.</div>
-  ) : (
-    <div className="space-y-4">
-      {(formData.hazirClips || []).map((clip) => (
-        <HazirClipTrimmer
-          key={clip.id}
-          clip={clip}
-          onRemove={() => removeClip(clip.id)}
-          onUpdate={(patch) => updateClip(clip.id, patch)}
-        />
-      ))}
-    </div>
-  )}
-</div>
+      {(formData.hazirClips || []).length > 0 && (
+        <div className="mt-5 space-y-4">
+          <div className="text-sm font-semibold text-stone-800">Seçilen Parçalar (kırpılabilir):</div>
+          {(formData.hazirClips || []).map((c) => (
+            <HazirClipTrimmer
+              key={c.clipId}
+              clip={c}
+              onRemove={() => removeClip(c.clipId)}
+              onUpdate={(u) => updateClip(c.clipId, u)}
+            />
+          ))}
+        </div>
+      )}
     </div>
   );
 }
+
 
 
 function HazirClipTrimmer({ clip, onRemove, onUpdate }) {
@@ -1072,7 +1152,9 @@ function HazirClipTrimmer({ clip, onRemove, onUpdate }) {
     return `${m}:${String(sec).padStart(2, '0')}`;
   };
 
-  // ✅ Metadata: süreyi kesin yaz
+  /* =========================================================
+     METADATA – duration KESİN gelsin
+     ========================================================= */
   useEffect(() => {
     const a = audioRef.current;
     if (!a) return;
@@ -1081,10 +1163,9 @@ function HazirClipTrimmer({ clip, onRemove, onUpdate }) {
       const dur = a.duration || 0;
       if (!dur || !Number.isFinite(dur)) return;
 
-      // songDur set
-      if (!clip.songDur || clip.songDur <= 0 || Math.abs(clip.songDur - dur) > 0.01) {
-        const safeStart = Math.min(Number(clip.start) || 0, Math.max(0, dur - 0.5));
-        const safeEnd = Math.min(Number(clip.end) || dur, dur);
+      if (!clip.songDur || Math.abs(clip.songDur - dur) > 0.01) {
+        const safeStart = Math.min(start, Math.max(0, dur - 0.5));
+        const safeEnd = Math.min(end || dur, dur);
 
         onUpdate({
           songDur: dur,
@@ -1096,10 +1177,11 @@ function HazirClipTrimmer({ clip, onRemove, onUpdate }) {
 
     a.addEventListener('loadedmetadata', onMeta);
     return () => a.removeEventListener('loadedmetadata', onMeta);
-    // ✅ clip.id doğru
-  }, [clip.id]);
+  }, [clip.clipId, clip.toyUrl]);
 
-  // ✅ Play sırasında aralık dışına çıkmasın
+  /* =========================================================
+     PLAY SIRASINDA ARALIK KORUMA
+     ========================================================= */
   useEffect(() => {
     const a = audioRef.current;
     if (!a) return;
@@ -1108,7 +1190,6 @@ function HazirClipTrimmer({ clip, onRemove, onUpdate }) {
       if (!isPlaying) return;
 
       if (a.currentTime < start) a.currentTime = start;
-
       if (a.currentTime >= end) {
         a.pause();
         a.currentTime = start;
@@ -1129,21 +1210,72 @@ function HazirClipTrimmer({ clip, onRemove, onUpdate }) {
     };
   }, [isPlaying, start, end]);
 
+  /* =========================================================
+     SLIDER HANDLER
+     ========================================================= */
   const handleStart = (val) => {
     const nextStart = Math.max(0, Math.min(val, end - 0.5));
     onUpdate({ start: nextStart });
-    const a = audioRef.current;
-    if (a && isPlaying) a.currentTime = nextStart;
+    if (audioRef.current && isPlaying) {
+      audioRef.current.currentTime = nextStart;
+    }
   };
 
   const handleEnd = (val) => {
-    const nextEnd = Math.max(start + 0.5, val);
+    const nextEnd = Math.min(
+      duration || Infinity,
+      Math.max(start + 0.5, val)
+    );
     onUpdate({ end: nextEnd });
   };
 
+  /* =========================================================
+     RENDER
+     ========================================================= */
   return (
     <div className="bg-white border border-amber-200 rounded-xl p-4">
-      {/* ÜST BAR */}
+      {/* SLIDER STYLE (LOCAL) */}
+      <style>{`
+        .hazirRange{
+          -webkit-appearance:none;
+          appearance:none;
+          width:100%;
+          height:26px;
+          background:transparent;
+          outline:none;
+        }
+        .hazirRange::-webkit-slider-runnable-track{
+          height:0px;
+          background:transparent;
+          border:none;
+        }
+        .hazirRange::-webkit-slider-thumb{
+          -webkit-appearance:none;
+          appearance:none;
+          width:16px;
+          height:16px;
+          border-radius:9999px;
+          background:#b45309;
+          border:2px solid #92400e;
+          box-shadow:0 1px 3px rgba(0,0,0,0.25);
+          cursor:grab;
+        }
+        .hazirRange::-moz-range-track{
+          background:transparent;
+          border:none;
+        }
+        .hazirRange::-moz-range-thumb{
+          width:16px;
+          height:16px;
+          border-radius:9999px;
+          background:#b45309;
+          border:2px solid #92400e;
+          box-shadow:0 1px 3px rgba(0,0,0,0.25);
+          cursor:grab;
+        }
+      `}</style>
+
+      {/* HEADER */}
       <div className="flex items-center justify-between gap-3">
         <div className="text-sm font-semibold text-stone-800 truncate">
           {clip.title}
@@ -1152,25 +1284,20 @@ function HazirClipTrimmer({ clip, onRemove, onUpdate }) {
         <button
           type="button"
           onClick={() => {
-            const a = audioRef.current;
-            try { a?.pause?.(); } catch {}
+            try { audioRef.current?.pause?.(); } catch {}
             setIsPlaying(false);
             onRemove?.();
           }}
-          className="p-2 rounded-full bg-red-100 hover:bg-red-200 transition flex-shrink-0"
+          className="p-2 rounded-full bg-red-100 hover:bg-red-200 transition"
           title="Sil"
         >
           <X className="w-4 h-4 text-red-600" />
         </button>
       </div>
 
-      {/* ✅ TEK AUDIO */}
+      {/* AUDIO */}
       <div className="mt-3">
-        <div className="text-xs font-semibold text-stone-700 mb-1">
-          Oyuncakta Duyulacak (16 kHz)
-        </div>
-
-        <audio ref={audioRef} src={clip.toyUrl} preload="metadata" className="hidden" />
+        <audio ref={audioRef} src={clip.toyUrl} preload="metadata" />
 
         <div className="flex items-center justify-between mt-2">
           <button
@@ -1189,14 +1316,12 @@ function HazirClipTrimmer({ clip, onRemove, onUpdate }) {
                 a.currentTime = start;
                 await a.play();
                 setIsPlaying(true);
-              } catch (e) {
-                console.error(e);
+              } catch {
                 setIsPlaying(false);
-                alert('Tarayıcı ses çalmayı engelledi. Play’e tekrar bas.');
+                alert('Tarayıcı sesi engelledi. Tekrar dene.');
               }
             }}
-            className="p-2 rounded-full bg-amber-100 hover:bg-amber-200 transition"
-            title={isPlaying ? 'Durdur' : 'Oynat'}
+            className="p-2 rounded-full bg-amber-100 hover:bg-amber-200"
           >
             {isPlaying ? (
               <Pause className="w-4 h-4 text-amber-800" />
@@ -1206,16 +1331,16 @@ function HazirClipTrimmer({ clip, onRemove, onUpdate }) {
           </button>
 
           <div className="text-xs text-stone-600">
-            Seçili: <b>{formatTime(Math.max(0, end - start))}</b>
+            Seçili: <b>{formatTime(end - start)}</b>
           </div>
         </div>
       </div>
 
-      {/* ✅ SLIDER (duration gelince görünür) */}
+      {/* SLIDER */}
       {duration > 0 ? (
         <div className="mt-4">
           <div
-            className="h-2 rounded-lg bg-stone-200"
+            className="h-2 rounded-lg"
             style={{
               background: `linear-gradient(to right,
                 #e7e5e4 0%,
@@ -1229,14 +1354,14 @@ function HazirClipTrimmer({ clip, onRemove, onUpdate }) {
 
           <div className="relative mt-2 pt-7">
             <div
-              className="absolute -top-1 text-[11px] px-2 py-1 rounded-md bg-amber-700 text-white shadow"
+              className="absolute -top-1 text-[11px] px-2 py-1 rounded-md bg-amber-700 text-white"
               style={{ left: `${startPct}%`, transform: 'translateX(-50%)' }}
             >
               {formatTime(start)}
             </div>
 
             <div
-              className="absolute -top-1 text-[11px] px-2 py-1 rounded-md bg-amber-800 text-white shadow"
+              className="absolute -top-1 text-[11px] px-2 py-1 rounded-md bg-amber-800 text-white"
               style={{ left: `${endPct}%`, transform: 'translateX(-50%)' }}
             >
               {formatTime(end)}
@@ -1268,18 +1393,19 @@ function HazirClipTrimmer({ clip, onRemove, onUpdate }) {
           </div>
 
           <div className="flex justify-between text-xs text-stone-500 mt-2">
-            <span>{formatTime(0)}</span>
+            <span>0:00</span>
             <span>{formatTime(duration)}</span>
           </div>
         </div>
       ) : (
         <div className="mt-3 text-xs text-amber-700">
-          ⏳ Önizleme hazırlanıyor... (toyUrl doğruysa 1-2 sn içinde slider gelir)
+          ⏳ Önizleme hazırlanıyor…
         </div>
       )}
     </div>
   );
 }
+
 
 function YouTubeRangePicker({ ytDurationSec, formData, setFormData }) {
   // Video süresi varsa...
