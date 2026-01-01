@@ -261,7 +261,10 @@ const [formData, setFormData] = useState({
 });
 
   const [showNotice, setShowNotice] = useState(false);
-
+  const totalSec = useMemo(() => {
+    return (formData.hazirClips || []).reduce((sum, c) => sum + Math.max(0, c.end - c.start), 0);
+  }, [formData.hazirClips]);
+   
    const clearUploads = (uploads = []) => {
   uploads.forEach((f) => {
     try { if (f?.url) URL.revokeObjectURL(f.url); } catch {}
@@ -949,9 +952,7 @@ function HazirMuzikMulti({ formData, setFormData }) {
     });
   }, [query]);
 
-  const totalSec = useMemo(() => {
-    return (formData.hazirClips || []).reduce((sum, c) => sum + Math.max(0, c.end - c.start), 0);
-  }, [formData.hazirClips]);
+
 
   const remaining = Math.max(0, MAX_TOTAL_SEC - totalSec);
 
