@@ -2137,6 +2137,14 @@ useEffect(() => {
       `}</style>
 
       <audio ref={audioRef} src={dosya.url} preload="metadata" />
+
+       <div className="mt-3">
+  <div className="text-xs font-semibold text-stone-700 mb-1">
+    Orijinal Ses
+  </div>
+
+  <audio controls src={dosya.url} className="w-full" />
+</div>
       {/* Oyuncakta duyulacak 16k preview */}
 <div className="mt-3">
   <div className="text-xs font-semibold text-stone-700 mb-1">
