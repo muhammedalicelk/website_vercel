@@ -1328,7 +1328,25 @@ function HazirClipTrimmer({ clip, onRemove, onUpdate }) {
         <div className="text-sm font-semibold text-stone-800 truncate">
           {clip.title}
         </div>
+<div className="flex items-center gap-2">
+  <button
+    type="button"
+    onClick={togglePlay}
+    className="px-3 py-2 rounded-lg bg-amber-100 hover:bg-amber-200 text-amber-900 text-sm"
+    title={isPlaying ? 'Durdur' : 'Dinle'}
+  >
+    {isPlaying ? 'Dur' : 'Dinle'}
+  </button>
 
+  <button
+    type="button"
+    onClick={onRemove}
+    className="px-3 py-2 rounded-lg bg-red-100 hover:bg-red-200 text-red-700 text-sm"
+    title="Sil"
+  >
+    Sil
+  </button>
+</div>
         <button
           type="button"
           onClick={() => {
