@@ -1351,20 +1351,7 @@ function HazirClipTrimmer({ clip, onRemove, onUpdate }) {
          
         <audio ref={audioRef} src={clip.toyUrl} preload="metadata" />
          <div className="mb-3">
-  {/* 🔹 ORİJİNAL SES ETİKETİ */}
-  <div className="flex items-center gap-2 mb-1">
-    <span className="text-xs px-2 py-0.5 rounded-full bg-stone-200 text-stone-700">
-      Orijinal Ses
-    </span>
-  </div>
 
-  {/* 🔊 ORİJİNAL AUDIO */}
-  <audio
-    controls
-    src={dosya.originalUrl}
-    className="w-full"
-  />
-</div>
         <div className="flex items-center justify-between mt-2">
           <button
             type="button"
