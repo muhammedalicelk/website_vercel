@@ -2147,17 +2147,7 @@ useEffect(() => {
 
       <div className="flex items-center justify-between mb-3">
         <div className="flex items-center gap-2 flex-1 min-w-0">
-          <button
-            type="button"
-            onClick={togglePlay}
-            disabled={!dosya.isReady}
-            className={`p-2 rounded-full transition flex-shrink-0 ${
-              dosya.isReady ? 'bg-amber-100 hover:bg-amber-200 active:scale-95' : 'bg-stone-100 opacity-50 cursor-not-allowed'
-            }`}
-            title={dosya.isReady ? (isPlaying ? 'Durdur' : 'Oynat') : 'Dosya hazırlanıyor'}
-          >
-            {isPlaying ? <Pause className="w-4 h-4 text-amber-800" /> : <Play className="w-4 h-4 text-amber-800" />}
-          </button>
+         
 
           <div className="flex-1 min-w-0">
             <span className="text-sm text-stone-800 truncate block">{dosya.name}</span>
