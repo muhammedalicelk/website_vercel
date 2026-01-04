@@ -1351,7 +1351,7 @@ function HazirClipTrimmer({ clip, onRemove, onUpdate }) {
          
         <audio ref={audioRef} src={clip.toyUrl} preload="metadata" />
          <div className="mb-3">
-
+         </div>
         <div className="flex items-center justify-between mt-2">
           <button
             type="button"
