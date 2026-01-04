@@ -1353,22 +1353,7 @@ function HazirClipTrimmer({ clip, onRemove, onUpdate }) {
          <div className="mb-3">
          </div>
         <div className="flex items-center justify-between mt-2">
-          <button
-            type="button"
-            onClick={togglePlay}
-            disabled={!duration}
-            className={`p-2 rounded-full transition ${
-              duration ? 'bg-amber-100 hover:bg-amber-200' : 'bg-stone-100 opacity-50 cursor-not-allowed'
-            }`}
-            title={isPlaying ? 'Durdur' : 'Oynat'}
-          >
-            {isPlaying ? (
-              <Pause className="w-4 h-4 text-amber-800" />
-            ) : (
-              <Play className="w-4 h-4 text-amber-800" />
-            )}
-          </button>
-
+         
           <div className="text-xs text-stone-600">
             Başlangıç: <b>{formatTime(start)}</b> • Bitiş: <b>{formatTime(end)}</b> • Seçili: <b>{formatTime(selectedDuration)}</b>
           </div>
