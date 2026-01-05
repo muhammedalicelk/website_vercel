@@ -591,11 +591,9 @@ if (activeTab === 'internet') {
 }
     const selectedSong = SONGS.find((s) => s.id === formData.hazirMuzikId);
 const orderId = `${Date.now()}_${Math.random().toString(16).slice(2)}`;
-
 // sadece hazır dosya upload yapılan yerlerde çalıştır
-const upload16kFromLocalFiles = async () => {
-  const items = (formData.yukluDosyalar || [])
-    .filter(f => f?.file && f?.isReady !== false); // senin yapına göre
+const upload16kFromLocalFiles = async (orderId) => {
+  const items = (formData.yukluDosyalar || []).filter(f => f?.file); // sadece file şart
 
   const out = [];
 
@@ -603,24 +601,19 @@ const upload16kFromLocalFiles = async () => {
     const start = Number(f.trimStart ?? 0);
     const end = Number(f.trimEnd ?? 0);
 
-    // trim valid mi?
     if (!isFinite(start) || !isFinite(end) || end <= start) continue;
 
-    // 310sn guard (ek güvenlik)
     if ((end - start) > 310.01) {
       throw new Error(`Dosya ${f.name} için seçilen süre 310 sn’yi aşıyor.`);
     }
 
-    // 1) 16k wav blob üret (senin mevcut fonksiyonun)
-    // ÖNEMLİ: Bu fonksiyon sende zaten var ve çalışıyor demiştin.
     const wavBlob = await fileTo16kWavBlob(f.file, start, end, 16000);
 
-    // 2) Blob’a upload
     const safeName = `${Date.now()}_${f.id || "file"}.wav`;
     const pathname = `orders/${orderId}/16k/${safeName}`;
 
     const blob = await upload(pathname, wavBlob, {
-      access: "public", // Blob tarafı böyle; UI’da göstermiyoruz
+      access: "public",
       handleUploadUrl: "/api/upload",
       contentType: "audio/wav",
     });
@@ -630,25 +623,30 @@ const upload16kFromLocalFiles = async () => {
       trimStart: start,
       trimEnd: end,
       blobPath: blob.pathname,
-      blobUrl: blob.url, // backend/telegram için
+      blobUrl: blob.url,
     });
   }
 
   return out;
 };
+
+
     try {
-      let uploaded16k = [];
-if (activeTab === "yukle" || (activeTab === "internet" && formData.yukluDosyalar.length > 0)) {
-  uploaded16k = await upload16kFromLocalFiles();
+let uploaded16k = [];
+if (activeTab === "yukle" && formData.yukluDosyalar.length > 0) {
+  uploaded16k = await upload16kFromLocalFiles(orderId);
 }
+console.log("UPLOADED_16K_FINAL", uploaded16k);
       const resp = await fetch('/api/order', {
+        
   method: 'POST',
   headers: { 'Content-Type': 'application/json' },
   body: JSON.stringify({
     musteriAdi: formData.musteriAdi,
     telefon: formData.telefon,
     activeTab,
-
+       orderId,
+       uploaded16k,
     // 👇 HAZIR MÜZİKLER (backend için sadeleştirilmiş)
     hazirClips: (formData.hazirClips || []).map(c => ({
       title: c.title,
