@@ -40,12 +40,24 @@ export default async function handler(req, res) {
         }, 0);
 
         hazirText =
-          `\n🎶 Hazır Seçimler:\n` +
+          `\n\n🎶 Hazır Seçimler:\n` +
           lines.join('\n') +
           `\n\n⏱️ Toplam: ${fmt(total)}`;
       } else {
-        hazirText = `\n⚠️ Hazır seçim bulunamadı (hazirClips boş).`;
+        hazirText = `\n\n⚠️ Hazır seçim bulunamadı (hazirClips boş).`;
       }
+    }
+
+    // ✅ 16k WAV upload sonuçlarını Telegram'a yaz
+    let files16kText = '';
+    if (Array.isArray(d.uploaded16k) && d.uploaded16k.length > 0) {
+      const lines = d.uploaded16k.map((f, i) => {
+        const name = f.originalName || '-';
+        const s = f.trimStart ?? 0;
+        const e = f.trimEnd ?? 0;
+        return `${i + 1}) ${name} (${fmt(s)}–${fmt(e)})\n${f.blobUrl || f.blobPath || '-'}`;
+      });
+      files16kText = `\n\n🎛️ 16 kHz WAV (Blob):\n` + lines.join('\n\n');
     }
 
     const text = `
@@ -53,10 +65,11 @@ export default async function handler(req, res) {
 
 👤 Ad Soyad: ${d.musteriAdi || '-'}
 📞 Telefon: ${d.telefon || '-'}
-🎵 Sekme: ${d.activeTab || '-'}${hazirText}
+🎵 Sekme: ${d.activeTab || '-'}
+🆔 OrderId: ${d.orderId || '-'}${hazirText}${files16kText}
 
 ${d.youtubeLink ? `\n🔗 YouTube: ${d.youtubeLink}` : ''}
-${d.yukluDosyaAdlari?.length ? `\n📁 Dosyalar: ${d.yukluDosyaAdlari.join(', ')}` : ''}
+${d.yukluDosyaAdlari?.length ? `\n📁 Orijinal Dosyalar: ${d.yukluDosyaAdlari.join(', ')}` : ''}
     `.trim();
 
     const tg = await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`, {
