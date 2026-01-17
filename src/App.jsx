@@ -6,8 +6,7 @@ const AUDIO_ACCEPT = 'audio/*';
 const MAX_TOTAL_SEC = 310;
 const MIN_GAP = 0.05;
 const STEP_FINE = 0.005;
-const [isSubmitting, setIsSubmitting] = useState(false);
-const [submitMsg, setSubmitMsg] = useState("Siparişiniz gönderiliyor…");
+
 
 
 /* =========================================================
@@ -247,6 +246,8 @@ Amaç kullanıcı geri bildirimi ve ürün geliştirmedir. Fatura düzenlenmemek
 Katılım bedeli ve kargo daha sonraki aşamada paylaşılacaktır.`;
 
 export default function SesliOyuncakSiparis() {
+ const [isSubmitting, setIsSubmitting] = useState(false);
+  const [submitMsg, setSubmitMsg] = useState("");
 
    const fileDialogOpenRef = useRef(false);
 const fileInputRef = useRef(null);
