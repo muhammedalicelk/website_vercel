@@ -6,6 +6,10 @@ const AUDIO_ACCEPT = 'audio/*';
 const MAX_TOTAL_SEC = 310;
 const MIN_GAP = 0.05;
 const STEP_FINE = 0.005;
+const [isSubmitting, setIsSubmitting] = useState(false);
+const [submitMsg, setSubmitMsg] = useState("Siparişiniz gönderiliyor…");
+
+
 /* =========================================================
    YT + SONGS
    ========================================================= */
@@ -495,6 +499,11 @@ useEffect(() => {
   };
 
   const handleSubmit = async () => {
+
+    if (isSubmitting) return;
+setIsSubmitting(true);
+setSubmitMsg("Siparişiniz gönderiliyor…");
+
     if (!formData.musteriAdi.trim() || !formData.telefon.trim()) {
       alert('Lütfen ad ve telefon bilgilerini doldurunuz.');
       return;
@@ -631,55 +640,98 @@ const upload16kFromLocalFiles = async (orderId) => {
 };
 
 
-    try {
-let uploaded16k = [];
-if (activeTab === "yukle" && formData.yukluDosyalar.length > 0) {
-  uploaded16k = await upload16kFromLocalFiles(orderId);
+try {
+  let uploaded16k = [];
+
+  if (activeTab === "yukle" && formData.yukluDosyalar.length > 0) {
+    setSubmitMsg("16 kHz ses dosyası hazırlanıyor…");
+    uploaded16k = await upload16kFromLocalFiles(orderId);
+
+    setSubmitMsg("Dosyalar yükleniyor…");
+  }
+
+  console.log("UPLOADED_16K_FINAL", uploaded16k);
+
+  setSubmitMsg("Sipariş kaydediliyor…");
+  const resp = await fetch('/api/order', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      musteriAdi: formData.musteriAdi,
+      telefon: formData.telefon,
+      activeTab,
+      orderId,
+      uploaded16k,
+
+      hazirClips: (formData.hazirClips || []).map(c => ({
+        title: c.title,
+        youtubeId: c.youtubeId,
+        start: c.start,
+        end: c.end,
+      })),
+
+      youtubeLink: formData.youtubeLink || '',
+      internetVideoId: internetVideoId || '',
+      yukluDosyaAdlari: (formData.yukluDosyalar || []).map(f => f.name),
+    }),
+  });
+
+  const j = await resp.json();
+  if (!j.ok) {
+    alert('Sipariş oluşturulamadı lütfen daha sonra tekrar deneyiniz. ' + (j.error || 'unknown'));
+    return;
+  }
+
+  alert('Siparişiniz alındı! En kısa sürede sizinle iletişime geçeceğiz.');
+  console.log('Sipariş Detayları:', formData);
+  console.log('Seçilen Hazır Müzik:', selectedSong);
+  console.log('İnternet VideoId:', internetVideoId);
+
+} catch (e) {
+  alert('Sipariş oluşturulamadı lütfen daha sonra tekrar deneyiniz. ' + (e?.message || e));
+  return;
+
+} finally {
+  setIsSubmitting(false);
+  setSubmitMsg("");
 }
-console.log("UPLOADED_16K_FINAL", uploaded16k);
-      const resp = await fetch('/api/order', {
-        
-  method: 'POST',
-  headers: { 'Content-Type': 'application/json' },
-  body: JSON.stringify({
-    musteriAdi: formData.musteriAdi,
-    telefon: formData.telefon,
-    activeTab,
-       orderId,
-       uploaded16k,
-    // 👇 HAZIR MÜZİKLER (backend için sadeleştirilmiş)
-    hazirClips: (formData.hazirClips || []).map(c => ({
-      title: c.title,
-      youtubeId: c.youtubeId,
-      start: c.start,
-      end: c.end,
-    })),
-
-    // diğerleri
-    youtubeLink: formData.youtubeLink || '',
-    internetVideoId: internetVideoId || '',
-    yukluDosyaAdlari: (formData.yukluDosyalar || []).map(f => f.name),
-  }),
-});
-
-      const j = await resp.json();
-      if (!j.ok) {
-        alert('Sipariş oluşturulamadı lütfen daha sonra tekrar deneyiniz. ' + (j.error || 'unknown'));
-        return;
-      }
-    } catch (e) {
-      alert('Sipariş oluşturulamadı lütfen daha sonra tekrar deneyiniz.' + (e?.message || e));
-      return;
-    }
-
-    alert('Siparişiniz alındı! En kısa sürede sizinle iletişime geçeceğiz.');
-    console.log('Sipariş Detayları:', formData);
-    console.log('Seçilen Hazır Müzik:', selectedSong);
-    console.log('İnternet VideoId:', internetVideoId);
-  };
-
   return (
     <>
+    {isSubmitting && (
+  <div style={{
+    position: "fixed",
+    inset: 0,
+    background: "rgba(0,0,0,0.45)",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    zIndex: 9999,
+  }}>
+    <div style={{
+      background: "white",
+      padding: 18,
+      borderRadius: 12,
+      minWidth: 260,
+      textAlign: "center",
+      boxShadow: "0 10px 30px rgba(0,0,0,0.25)",
+    }}>
+      <div style={{ fontSize: 18, fontWeight: 700, marginBottom: 8 }}>
+        Lütfen bekleyin
+      </div>
+      <div style={{ marginBottom: 12 }}>{submitMsg || "Gönderiliyor…"}</div>
+
+      <div style={{
+        width: 28,
+        height: 28,
+        border: "3px solid #ddd",
+        borderTop: "3px solid #333",
+        borderRadius: "50%",
+        margin: "0 auto",
+        animation: "spin 1s linear infinite",
+      }} />
+    </div>
+  </div>
+)}
       {showNotice && (
         <div className="fixed inset-0 z-50 flex items-center justify-center px-4">
           <div className="absolute inset-0 bg-black/40" />
@@ -929,16 +981,16 @@ onChange={(v) => setFormData(p => ({ ...p, telefon: v }))}
 
 <button
   type="button"
-  disabled={submitDisabled}
+  disabled={submitDisabled || isSubmitting}
   onClick={handleSubmit}
   className={`w-full py-4 rounded-xl font-semibold text-lg transition shadow-lg
     ${
-      submitDisabled
+      submitDisabled || isSubmitting
         ? 'bg-stone-300 text-stone-500 cursor-not-allowed'
         : 'bg-gradient-to-r from-amber-700 to-yellow-600 text-white hover:from-amber-800 hover:to-yellow-700'
     }`}
 >
-  Siparişi Tamamla
+  {isSubmitting ? "Gönderiliyor…" : "Siparişi Tamamla"}
 </button>
 
 
@@ -951,6 +1003,9 @@ onChange={(v) => setFormData(p => ({ ...p, telefon: v }))}
     </>
   );
 }
+<style>{`
+@keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+`}</style>
 function Input({ label, value, onChange, placeholder, type = "text" }) {
   return (
     <div>
