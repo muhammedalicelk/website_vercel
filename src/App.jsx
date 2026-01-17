@@ -498,519 +498,513 @@ useEffect(() => {
     }));
   };
 
-  const handleSubmit = async () => {
-
+ const handleSubmit = async () => {
     if (isSubmitting) return;
-setIsSubmitting(true);
-setSubmitMsg("Siparişiniz gönderiliyor…");
+
+    // ---------------- VALIDASYONLAR (BURADA isSubmitting true YAPMIYORUZ) ----------------
 
     if (!formData.musteriAdi.trim() || !formData.telefon.trim()) {
-      alert('Lütfen ad ve telefon bilgilerini doldurunuz.');
+      alert("Lütfen ad ve telefon bilgilerini doldurunuz.");
       return;
     }
 
-if (activeTab === 'hazir') {
-  const clips = formData.hazirClips || [];
-  if (clips.length === 0) {
-    alert('Lütfen en az bir hazır müzik ekleyin!');
-    return;
-  }
+    if (activeTab === "hazir") {
+      const clips = formData.hazirClips || [];
+      if (clips.length === 0) {
+        alert("Lütfen en az bir hazır müzik ekleyin!");
+        return;
+      }
 
-  const total = clips.reduce((s, c) => s + Math.max(0, c.end - c.start), 0);
-  if (total > MAX_TOTAL_SEC + 0.01) {
-    alert('Toplam süre 310 sn’yi aşıyor. Lütfen kısaltın.');
-    return;
-  }
+      const total = clips.reduce(
+        (s, c) => s + Math.max(0, Number(c.end) - Number(c.start)),
+        0
+      );
 
-  const missing = clips.find((c) => c.toyOk === false);
-  if (missing) {
-    alert('Bazı hazır müziklerde 16 kHz önizleme dosyası yok. Lütfen düzeltin veya başka parça seçin.');
-    return;
-  }
-}
+      if (total > MAX_TOTAL_SEC + 0.01) {
+        alert("Toplam süre 310 sn’yi aşıyor. Lütfen kısaltın.");
+        return;
+      }
 
+      const missing = clips.find((c) => c.toyOk === false);
+      if (missing) {
+        alert(
+          "Bazı hazır müziklerde 16 kHz önizleme dosyası yok. Lütfen düzeltin veya başka parça seçin."
+        );
+        return;
+      }
+    }
 
-
-
-    if (activeTab === 'yukle' && formData.yukluDosyalar.length === 0) {
-      alert('Lütfen en az bir dosya yükleyiniz.');
+    if (activeTab === "yukle" && formData.yukluDosyalar.length === 0) {
+      alert("Lütfen en az bir dosya yükleyiniz.");
       return;
     }
 
-if (activeTab === 'internet') {
-  const hasUpload = formData.yukluDosyalar.length > 0;
-  const hasManualRange =
-    formData.ytStartSec !== '' && formData.ytEndSec !== '';
+    // INTERNET: tek blok (senin iki defa yazdığın şeyleri birleştirdim)
+    if (activeTab === "internet") {
+      if (!internetVideoId) {
+        alert("Link geçersizdir.");
+        return;
+      }
 
-  if (!hasUpload && !hasManualRange) {
-    alert(
-      'YouTube seçimi için lütfen ses dosyasını yükleyiniz ya da süre aralığını belirtiniz.'
-    );
-    return;
-  }
+      const hasUpload = formData.yukluDosyalar.length > 0;
+      const hasManualRange =
+        formData.ytStartSec !== "" && formData.ytEndSec !== "";
 
-  if (hasManualRange) {
-    const start = Number(formData.ytStartSec);
-    const end = Number(formData.ytEndSec);
+      if (!hasUpload && !hasManualRange) {
+        alert(
+          "YouTube seçimi için lütfen ses dosyasını yükleyiniz ya da süre aralığını belirtiniz."
+        );
+        return;
+      }
 
-    if (isNaN(start) || isNaN(end) || end <= start) {
-      alert('Lütfen geçerli bir başlangıç ve bitiş süresi giriniz.');
-      return;
+      if (ytDurationSec && ytDurationSec > 310 && !hasUpload && !hasManualRange) {
+        alert(
+          "Video 310 sn’den uzundur. Lütfen dosya yükleyiniz veya süre aralığı belirtiniz."
+        );
+        return;
+      }
+
+      if (hasManualRange) {
+        const start = Number(formData.ytStartSec);
+        const end = Number(formData.ytEndSec);
+
+        if (isNaN(start) || isNaN(end) || end <= start) {
+          alert("Lütfen geçerli bir başlangıç ve bitiş süresi giriniz.");
+          return;
+        }
+
+        if (end - start > 310) {
+          alert("Seçilen süre 310 sn’den uzundur. Lütfen aşağıdan süre aralığı belirtiniz.");
+          return;
+        }
+
+        if (ytDurationSec && end > ytDurationSec) {
+          alert("Bitiş süresi video süresinden büyük olamaz.");
+          return;
+        }
+      }
     }
 
-    if (end - start > 310) {
+    // ---------------- VALIDASYON BİTTİ -> ARTIK SUBMIT MODUNA GEÇ ----------------
+    setIsSubmitting(true);
+    setSubmitMsg("Siparişiniz gönderiliyor…");
+
+    const selectedSong = SONGS.find((s) => s.id === formData.hazirMuzikId);
+    const orderId = `${Date.now()}_${Math.random().toString(16).slice(2)}`;
+
+    // sadece upload tabı (senin mantığın bu)
+    const upload16kFromLocalFiles = async (orderId) => {
+      const items = (formData.yukluDosyalar || []).filter((f) => f?.file);
+
+      const out = [];
+
+      for (const f of items) {
+        const start = Number(f.trimStart ?? 0);
+        const end = Number(f.trimEnd ?? 0);
+
+        if (!isFinite(start) || !isFinite(end) || end <= start) continue;
+
+        if (end - start > 310.01) {
+          throw new Error(`Dosya ${f.name} için seçilen süre 310 sn’yi aşıyor.`);
+        }
+
+        const wavBlob = await fileTo16kWavBlob(f.file, start, end, 16000);
+
+        const safeName = `${Date.now()}_${f.id || "file"}.wav`;
+        const pathname = `orders/${orderId}/16k/${safeName}`;
+
+        const blob = await upload(pathname, wavBlob, {
+          access: "public",
+          handleUploadUrl: "/api/upload",
+          contentType: "audio/wav",
+        });
+
+        out.push({
+          originalName: f.name,
+          trimStart: start,
+          trimEnd: end,
+          blobPath: blob.pathname,
+          blobUrl: blob.url,
+        });
+      }
+
+      return out;
+    };
+
+    try {
+      let uploaded16k = [];
+
+      if (activeTab === "yukle" && formData.yukluDosyalar.length > 0) {
+        setSubmitMsg("16 kHz ses dosyası hazırlanıyor…");
+        uploaded16k = await upload16kFromLocalFiles(orderId);
+        setSubmitMsg("Dosyalar yükleniyor…");
+      }
+
+      console.log("UPLOADED_16K_FINAL", uploaded16k);
+
+      setSubmitMsg("Sipariş kaydediliyor…");
+      const resp = await fetch("/api/order", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          musteriAdi: formData.musteriAdi,
+          telefon: formData.telefon,
+          activeTab,
+          orderId,
+          uploaded16k,
+
+          hazirClips: (formData.hazirClips || []).map((c) => ({
+            title: c.title,
+            youtubeId: c.youtubeId,
+            start: c.start,
+            end: c.end,
+          })),
+
+          youtubeLink: formData.youtubeLink || "",
+          internetVideoId: internetVideoId || "",
+          yukluDosyaAdlari: (formData.yukluDosyalar || []).map((f) => f.name),
+        }),
+      });
+
+      const j = await resp.json();
+      if (!j.ok) {
+        alert(
+          "Sipariş oluşturulamadı lütfen daha sonra tekrar deneyiniz. " +
+            (j.error || "unknown")
+        );
+        return;
+      }
+
+      alert("Siparişiniz alındı! En kısa sürede sizinle iletişime geçeceğiz.");
+      console.log("Sipariş Detayları:", formData);
+      console.log("Seçilen Hazır Müzik:", selectedSong);
+      console.log("İnternet VideoId:", internetVideoId);
+    } catch (e) {
       alert(
-        'Seçilen süre 310 saniyeden uzundur. Lütfen aşağıdan süre aralığı belirtiniz.'
+        "Sipariş oluşturulamadı lütfen daha sonra tekrar deneyiniz. " +
+          (e?.message || e)
       );
       return;
+    } finally {
+      setIsSubmitting(false);
+      setSubmitMsg("");
     }
-  }
-}
-if (activeTab === 'internet') {
-  if (!internetVideoId) {
-    alert('Link geçersizdir.');
-    return;
-  }
+  };
 
-  const hasUpload = formData.yukluDosyalar.length > 0;
-  const hasManualRange = formData.ytStartSec !== '' && formData.ytEndSec !== '';
-
-  if (ytDurationSec && ytDurationSec > 310 && !hasUpload && !hasManualRange) {
-    alert('Video 310 sn’den uzundur. Lütfen dosya yükleyiniz veya süre aralığı belirtiniz.');
-    return;
-  }
-
-  if (hasManualRange) {
-    const start = Number(formData.ytStartSec);
-    const end = Number(formData.ytEndSec);
-
-    if (isNaN(start) || isNaN(end) || end <= start) {
-      alert('Lütfen geçerli bir başlangıç ve bitiş süresi giriniz.');
-      return;
-    }
-    if (end - start > 310) {
-      alert('Seçilen süre 310 sn’den uzundur. Lütfen aşağıdan süre aralığı belirtiniz.');
-      return;
-    }
-    if (ytDurationSec && end > ytDurationSec) {
-      alert('Bitiş süresi video süresinden büyük olamaz.');
-      return;
-    }
-  }
-}
-    const selectedSong = SONGS.find((s) => s.id === formData.hazirMuzikId);
-const orderId = `${Date.now()}_${Math.random().toString(16).slice(2)}`;
-// sadece hazır dosya upload yapılan yerlerde çalıştır
-const upload16kFromLocalFiles = async (orderId) => {
-  const items = (formData.yukluDosyalar || []).filter(f => f?.file); // sadece file şart
-
-  const out = [];
-
-  for (const f of items) {
-    const start = Number(f.trimStart ?? 0);
-    const end = Number(f.trimEnd ?? 0);
-
-    if (!isFinite(start) || !isFinite(end) || end <= start) continue;
-
-    if ((end - start) > 310.01) {
-      throw new Error(`Dosya ${f.name} için seçilen süre 310 sn’yi aşıyor.`);
-    }
-
-    const wavBlob = await fileTo16kWavBlob(f.file, start, end, 16000);
-
-    const safeName = `${Date.now()}_${f.id || "file"}.wav`;
-    const pathname = `orders/${orderId}/16k/${safeName}`;
-
-    const blob = await upload(pathname, wavBlob, {
-      access: "public",
-      handleUploadUrl: "/api/upload",
-      contentType: "audio/wav",
-    });
-
-    out.push({
-      originalName: f.name,
-      trimStart: start,
-      trimEnd: end,
-      blobPath: blob.pathname,
-      blobUrl: blob.url,
-    });
-  }
-
-  return out;
-};
-
-
-try {
-  let uploaded16k = [];
-
-  if (activeTab === "yukle" && formData.yukluDosyalar.length > 0) {
-    setSubmitMsg("16 kHz ses dosyası hazırlanıyor…");
-    uploaded16k = await upload16kFromLocalFiles(orderId);
-
-    setSubmitMsg("Dosyalar yükleniyor…");
-  }
-
-  console.log("UPLOADED_16K_FINAL", uploaded16k);
-
-  setSubmitMsg("Sipariş kaydediliyor…");
-  const resp = await fetch('/api/order', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      musteriAdi: formData.musteriAdi,
-      telefon: formData.telefon,
-      activeTab,
-      orderId,
-      uploaded16k,
-
-      hazirClips: (formData.hazirClips || []).map(c => ({
-        title: c.title,
-        youtubeId: c.youtubeId,
-        start: c.start,
-        end: c.end,
-      })),
-
-      youtubeLink: formData.youtubeLink || '',
-      internetVideoId: internetVideoId || '',
-      yukluDosyaAdlari: (formData.yukluDosyalar || []).map(f => f.name),
-    }),
-  });
-
-  const j = await resp.json();
-  if (!j.ok) {
-    alert('Sipariş oluşturulamadı lütfen daha sonra tekrar deneyiniz. ' + (j.error || 'unknown'));
-    return;
-  }
-
-  alert('Siparişiniz alındı! En kısa sürede sizinle iletişime geçeceğiz.');
-  console.log('Sipariş Detayları:', formData);
-  console.log('Seçilen Hazır Müzik:', selectedSong);
-  console.log('İnternet VideoId:', internetVideoId);
-
-} catch (e) {
-  alert('Sipariş oluşturulamadı lütfen daha sonra tekrar deneyiniz. ' + (e?.message || e));
-  return;
-
-} finally {
-  setIsSubmitting(false);
-  setSubmitMsg("");
-}};
   return (
-  <>
-    {isSubmitting && (
-      <div
-        style={{
-          position: "fixed",
-          inset: 0,
-          background: "rgba(0,0,0,0.45)",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          zIndex: 9999,
-        }}
-      >
+    <>
+      {isSubmitting && (
         <div
           style={{
-            background: "white",
-            padding: 18,
-            borderRadius: 12,
-            minWidth: 260,
-            textAlign: "center",
-            boxShadow: "0 10px 30px rgba(0,0,0,0.25)",
+            position: "fixed",
+            inset: 0,
+            background: "rgba(0,0,0,0.45)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            zIndex: 9999,
           }}
         >
-          <div style={{ fontSize: 18, fontWeight: 700, marginBottom: 8 }}>
-            Lütfen bekleyin
-          </div>
-          <div style={{ marginBottom: 12 }}>
-            {submitMsg || "Gönderiliyor…"}
-          </div>
-
           <div
             style={{
-              width: 28,
-              height: 28,
-              border: "3px solid #ddd",
-              borderTop: "3px solid #333",
-              borderRadius: "50%",
-              margin: "0 auto",
-              animation: "spin 1s linear infinite",
+              background: "white",
+              padding: 18,
+              borderRadius: 12,
+              minWidth: 260,
+              textAlign: "center",
+              boxShadow: "0 10px 30px rgba(0,0,0,0.25)",
             }}
-          />
-        </div>
-      </div>
-    )}
+          >
+            <div style={{ fontSize: 18, fontWeight: 700, marginBottom: 8 }}>
+              Lütfen bekleyin
+            </div>
+            <div style={{ marginBottom: 12 }}>{submitMsg || "Gönderiliyor…"}</div>
 
-    {showNotice && (
-      <div className="fixed inset-0 z-50 flex items-center justify-center px-4">
-        <div className="absolute inset-0 bg-black/40" />
-        <div className="relative w-full max-w-xl bg-white rounded-2xl shadow-2xl border border-amber-200">
-          <div className="p-6">
-            <h3 className="text-lg font-bold text-stone-900 mb-3">
-              Önemli Bilgilendirme
-            </h3>
-            <p className="text-sm text-stone-700 leading-relaxed whitespace-pre-line">
-              {NOTICE_TEXT}
-            </p>
-            <button
-              type="button"
-              onClick={() => setShowNotice(false)}
-              className="mt-5 w-full bg-gradient-to-r from-amber-700 to-yellow-600 text-white py-3 rounded-xl font-semibold hover:opacity-90"
-            >
-              Okudum, Devam Et
-            </button>
-          </div>
-        </div>
-      </div>
-    )}
-
-    <div className="min-h-screen bg-gradient-to-br from-amber-50 via-yellow-50 to-stone-100 py-10 px-4">
-      <div className="max-w-2xl mx-auto">
-        {/* HEADER */}
-        <div className="bg-white rounded-3xl shadow-xl p-8 mb-8 text-center">
-          <div className="w-32 h-32 mx-auto mb-4 rounded-2xl bg-gradient-to-br from-amber-200 to-yellow-200 shadow-inner border border-amber-200 overflow-hidden flex items-center justify-center">
-            <img
-              src="/memory-drop-logo.png"
-              alt="Memory Drop Studio"
-              className="w-full h-full object-cover"
-              draggable={false}
-              onError={(e) => {
-                e.currentTarget.style.display = "none";
+            <div
+              style={{
+                width: 28,
+                height: 28,
+                border: "3px solid #ddd",
+                borderTop: "3px solid #333",
+                borderRadius: "50%",
+                margin: "0 auto",
+                animation: "spin 1s linear infinite",
               }}
             />
           </div>
-
-          <h1 className="text-3xl font-bold text-stone-800 mb-2">
-            Memory Drop Studio Ön Sipariş Ekranı
-          </h1>
-          <p className="text-stone-600">
-            Sevdikleriniz için özel, sesli bir oyuncak oluşturun!
-          </p>
         </div>
+      )}
 
-        {/* FORM */}
-        <div className="bg-white rounded-3xl shadow-xl p-8">
-          {/* İLETİŞİM */}
-          <div className="mb-8">
-            <h2 className="text-xl font-semibold text-stone-800 mb-4 flex items-center">
-              <User className="w-5 h-5 mr-2 text-amber-700" />
-              İletişim Bilgileri
-            </h2>
-
-            <div className="space-y-4">
-              <Input
-                label="Ad Soyad *"
-                value={formData?.musteriAdi ?? ""}
-                onChange={(v) => setFormData((p) => ({ ...p, musteriAdi: v }))}
-                placeholder="Ad soyad giriniz."
-              />
-              <Input
-                label="Telefon *"
-                value={formData?.telefon ?? ""}
-                onChange={(v) => setFormData((p) => ({ ...p, telefon: v }))}
-                placeholder="0555 555 55 55"
-              />
+      {showNotice && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center px-4">
+          <div className="absolute inset-0 bg-black/40" />
+          <div className="relative w-full max-w-xl bg-white rounded-2xl shadow-2xl border border-amber-200">
+            <div className="p-6">
+              <h3 className="text-lg font-bold text-stone-900 mb-3">
+                Önemli Bilgilendirme
+              </h3>
+              <p className="text-sm text-stone-700 leading-relaxed whitespace-pre-line">
+                {NOTICE_TEXT}
+              </p>
+              <button
+                type="button"
+                onClick={() => setShowNotice(false)}
+                className="mt-5 w-full bg-gradient-to-r from-amber-700 to-yellow-600 text-white py-3 rounded-xl font-semibold hover:opacity-90"
+              >
+                Okudum, Devam Et
+              </button>
             </div>
           </div>
+        </div>
+      )}
 
-          {/* MÜZİK */}
-          <div className="mb-6">
-            <h2 className="text-xl font-semibold text-stone-800 flex items-center mb-4">
-              <Music className="w-5 h-5 mr-2 text-amber-700" />
-              Müzik Seçimi *
-            </h2>
+      <div className="min-h-screen bg-gradient-to-br from-amber-50 via-yellow-50 to-stone-100 py-10 px-4">
+        <div className="max-w-2xl mx-auto">
+          {/* HEADER */}
+          <div className="bg-white rounded-3xl shadow-xl p-8 mb-8 text-center">
+            <div className="w-32 h-32 mx-auto mb-4 rounded-2xl bg-gradient-to-br from-amber-200 to-yellow-200 shadow-inner border border-amber-200 overflow-hidden flex items-center justify-center">
+              <img
+                src="/memory-drop-logo.png"
+                alt="Memory Drop Studio"
+                className="w-full h-full object-cover"
+                draggable={false}
+                onError={(e) => {
+                  e.currentTarget.style.display = "none";
+                }}
+              />
+            </div>
 
-            <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 mb-4 flex items-start gap-3">
-              <AlertCircle className="w-5 h-5 text-amber-700 flex-shrink-0 mt-0.5" />
-              <div className="text-sm text-amber-900">
-                <strong>Önemli:</strong> Seçmiş olduğunuz müziklerin toplam süresi
-                süresi maksimum 310 saniye (5dk 10sn) olmalıdır.
+            <h1 className="text-3xl font-bold text-stone-800 mb-2">
+              Memory Drop Studio Ön Sipariş Ekranı
+            </h1>
+            <p className="text-stone-600">
+              Sevdikleriniz için özel, sesli bir oyuncak oluşturun!
+            </p>
+          </div>
+
+          {/* FORM */}
+          <div className="bg-white rounded-3xl shadow-xl p-8">
+            {/* İLETİŞİM */}
+            <div className="mb-8">
+              <h2 className="text-xl font-semibold text-stone-800 mb-4 flex items-center">
+                <User className="w-5 h-5 mr-2 text-amber-700" />
+                İletişim Bilgileri
+              </h2>
+
+              <div className="space-y-4">
+                <Input
+                  label="Ad Soyad *"
+                  value={formData?.musteriAdi ?? ""}
+                  onChange={(v) => setFormData((p) => ({ ...p, musteriAdi: v }))}
+                  placeholder="Ad soyad giriniz."
+                />
+                <Input
+                  label="Telefon *"
+                  value={formData?.telefon ?? ""}
+                  onChange={(v) => setFormData((p) => ({ ...p, telefon: v }))}
+                  placeholder="0555 555 55 55"
+                />
               </div>
             </div>
 
-            <div className="flex gap-2 mb-6 flex-wrap">
-              <TabButton active={activeTab === "hazir"} onClick={() => resetByTab("hazir")}>
-                Hazır
-              </TabButton>
-              <TabButton active={activeTab === "yukle"} onClick={() => resetByTab("yukle")}>
-                Dosya
-              </TabButton>
-              <TabButton active={activeTab === "internet"} onClick={() => resetByTab("internet")}>
-                İnternet
-              </TabButton>
-            </div>
+            {/* MÜZİK */}
+            <div className="mb-6">
+              <h2 className="text-xl font-semibold text-stone-800 flex items-center mb-4">
+                <Music className="w-5 h-5 mr-2 text-amber-700" />
+                Müzik Seçimi *
+              </h2>
 
-            <div className="bg-amber-50/30 rounded-xl p-6 border border-amber-100">
-              {activeTab === "hazir" && (
-                <div className="mb-3 text-xs text-stone-700">
-                  Toplam: <b>{fmtSec2(totalSec)} sn</b> • Kalan:{" "}
-                  <b>{fmtSec2(MAX_TOTAL_SEC - totalSec)} sn</b>
+              <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 mb-4 flex items-start gap-3">
+                <AlertCircle className="w-5 h-5 text-amber-700 flex-shrink-0 mt-0.5" />
+                <div className="text-sm text-amber-900">
+                  <strong>Önemli:</strong> Seçmiş olduğunuz müziklerin toplam süresi
+                  süresi maksimum 310 saniye (5dk 10sn) olmalıdır.
                 </div>
-              )}
+              </div>
 
-              {activeTab === "hazir" && (
-                <HazirMuzikMulti formData={formData} setFormData={setFormData} />
-              )}
+              <div className="flex gap-2 mb-6 flex-wrap">
+                <TabButton active={activeTab === "hazir"} onClick={() => resetByTab("hazir")}>
+                  Hazır
+                </TabButton>
+                <TabButton active={activeTab === "yukle"} onClick={() => resetByTab("yukle")}>
+                  Dosya
+                </TabButton>
+                <TabButton active={activeTab === "internet"} onClick={() => resetByTab("internet")}>
+                  İnternet
+                </TabButton>
+              </div>
 
-              {activeTab === "yukle" && (
-                <div>
-                  <p className="text-sm text-stone-700 mb-4">
-                    Dosya yükle (MP3 / WAV / M4A vb.)
-                  </p>
-
-                  <div className="border-2 border-dashed border-amber-200 rounded-xl p-8 text-center hover:border-amber-500 transition mb-4 bg-white">
-                    <Upload className="w-12 h-12 mx-auto text-amber-700 mb-3" />
-                    <label className="cursor-pointer">
-                      <span className="text-amber-800 font-medium hover:text-amber-900">
-                        Dosya Seç (Birden fazla seçilebilir)
-                      </span>
-
-                      <input
-                        ref={fileInputRef}
-                        type="file"
-                        accept={AUDIO_ACCEPT}
-                        multiple
-                        onPointerDown={() => {
-                          fileDialogOpenRef.current = true;
-                        }}
-                        onChange={handleFileUpload}
-                        className="hidden"
-                      />
-                    </label>
+              <div className="bg-amber-50/30 rounded-xl p-6 border border-amber-100">
+                {activeTab === "hazir" && (
+                  <div className="mb-3 text-xs text-stone-700">
+                    Toplam: <b>{fmtSec2(totalSec)} sn</b> • Kalan:{" "}
+                    <b>{fmtSec2(MAX_TOTAL_SEC - totalSec)} sn</b>
                   </div>
+                )}
 
-                  {formData.yukluDosyalar.length > 0 && (
-                    <div className="space-y-4">
-                      <p className="text-sm font-medium text-stone-700">
-                        Yüklenen Dosyalar:
-                      </p>
-                      {formData.yukluDosyalar.map((dosya) => (
-                        <DosyaTrimmer
-                          key={dosya.id}
-                          dosya={dosya}
-                          onRemove={removeDosya}
-                          onUpdate={updateDosya}
-                        />
-                      ))}
-                    </div>
-                  )}
-                </div>
-              )}
+                {activeTab === "hazir" && (
+                  <HazirMuzikMulti formData={formData} setFormData={setFormData} />
+                )}
 
-              {activeTab === "internet" && (
-                <>
-                  <InternetMuzik
-                    youtubeLink={formData.youtubeLink}
-                    onChange={(v) => setFormData({ ...formData, youtubeLink: v })}
-                    videoId={internetVideoId}
-                    onDuration={(sec) => setYtDurationSec(sec)}
-                  />
-
-                  {internetVideoId && (
-                    <div className="mt-3 text-xs text-stone-700">
-                      {ytDurationSec ? (
-                        <>
-                          Video süresi:{" "}
-                          <b>
-                            {Math.floor(ytDurationSec / 60)}:
-                            {String(Math.floor(ytDurationSec % 60)).padStart(2, "0")}
-                          </b>
-                        </>
-                      ) : (
-                        <>Video süresi okunuyor...</>
-                      )}
-                    </div>
-                  )}
-
-                  {internetVideoId && ytDurationSec && ytDurationSec > 310 && (
-                    <div className="mt-3 bg-red-50 border border-red-200 rounded-lg p-3 text-xs text-red-700">
-                      Bu video <b>310 sn’den uzundur</b>. Lütfen ses dosyasını
-                      yükleyiniz ya da aşağıdan süre aralığı belirtiniz.
-                    </div>
-                  )}
-
-                  <div className="mt-4 bg-amber-50 border border-amber-200 rounded-xl p-4">
-                    <div className="text-sm font-semibold text-stone-800 mb-2">
-                      Oyuncakta Duyulacak (16 kHz)
-                    </div>
-
-                    <p className="text-xs text-stone-600 mb-3">
-                      YouTube’dan ses dönüştürülmez. Oyuncakta duyulacak 16 kHz
-                      önizleme için lütfen aynı müziğin dosyasını yükleyin (MP3 /
-                      WAV / M4A vb.).
+                {activeTab === "yukle" && (
+                  <div>
+                    <p className="text-sm text-stone-700 mb-4">
+                      Dosya yükle (MP3 / WAV / M4A vb.)
                     </p>
 
-                    <label className="inline-flex items-center gap-2 cursor-pointer text-amber-800 font-medium">
-                      <Upload className="w-4 h-4" />
-                      Dosya Yükle
+                    <div className="border-2 border-dashed border-amber-200 rounded-xl p-8 text-center hover:border-amber-500 transition mb-4 bg-white">
+                      <Upload className="w-12 h-12 mx-auto text-amber-700 mb-3" />
+                      <label className="cursor-pointer">
+                        <span className="text-amber-800 font-medium hover:text-amber-900">
+                          Dosya Seç (Birden fazla seçilebilir)
+                        </span>
 
-                      <input
-                        ref={fileInputRef2}
-                        type="file"
-                        accept={AUDIO_ACCEPT}
-                        onPointerDown={() => {
-                          fileDialogOpenRef.current = true;
-                        }}
-                        onChange={handleFileUpload}
-                        className="hidden"
-                      />
-                    </label>
+                        <input
+                          ref={fileInputRef}
+                          type="file"
+                          accept={AUDIO_ACCEPT}
+                          multiple
+                          onPointerDown={() => {
+                            fileDialogOpenRef.current = true;
+                          }}
+                          onChange={handleFileUpload}
+                          className="hidden"
+                        />
+                      </label>
+                    </div>
+
+                    {formData.yukluDosyalar.length > 0 && (
+                      <div className="space-y-4">
+                        <p className="text-sm font-medium text-stone-700">
+                          Yüklenen Dosyalar:
+                        </p>
+                        {formData.yukluDosyalar.map((dosya) => (
+                          <DosyaTrimmer
+                            key={dosya.id}
+                            dosya={dosya}
+                            onRemove={removeDosya}
+                            onUpdate={updateDosya}
+                          />
+                        ))}
+                      </div>
+                    )}
                   </div>
+                )}
 
-                  {formData.yukluDosyalar.length > 0 && (
-                    <div className="mt-4 space-y-4">
-                      <div className="text-sm font-medium text-stone-700">
-                        Yüklediğin dosya(lar) – burada kırpabilirsin:
+                {activeTab === "internet" && (
+                  <>
+                    <InternetMuzik
+                      youtubeLink={formData.youtubeLink}
+                      onChange={(v) => setFormData({ ...formData, youtubeLink: v })}
+                      videoId={internetVideoId}
+                      onDuration={(sec) => setYtDurationSec(sec)}
+                    />
+
+                    {internetVideoId && (
+                      <div className="mt-3 text-xs text-stone-700">
+                        {ytDurationSec ? (
+                          <>
+                            Video süresi:{" "}
+                            <b>
+                              {Math.floor(ytDurationSec / 60)}:
+                              {String(Math.floor(ytDurationSec % 60)).padStart(2, "0")}
+                            </b>
+                          </>
+                        ) : (
+                          <>Video süresi okunuyor...</>
+                        )}
+                      </div>
+                    )}
+
+                    {internetVideoId && ytDurationSec && ytDurationSec > 310 && (
+                      <div className="mt-3 bg-red-50 border border-red-200 rounded-lg p-3 text-xs text-red-700">
+                        Bu video <b>310 sn’den uzundur</b>. Lütfen ses dosyasını
+                        yükleyiniz ya da aşağıdan süre aralığı belirtiniz.
+                      </div>
+                    )}
+
+                    <div className="mt-4 bg-amber-50 border border-amber-200 rounded-xl p-4">
+                      <div className="text-sm font-semibold text-stone-800 mb-2">
+                        Oyuncakta Duyulacak (16 kHz)
                       </div>
 
-                      {formData.yukluDosyalar.map((dosya) => (
-                        <DosyaTrimmer
-                          key={dosya.id}
-                          dosya={dosya.id}
-                          onRemove={removeDosya}
-                          onUpdate={updateDosya}
+                      <p className="text-xs text-stone-600 mb-3">
+                        YouTube’dan ses dönüştürülmez. Oyuncakta duyulacak 16 kHz
+                        önizleme için lütfen aynı müziğin dosyasını yükleyin (MP3 /
+                        WAV / M4A vb.).
+                      </p>
+
+                      <label className="inline-flex items-center gap-2 cursor-pointer text-amber-800 font-medium">
+                        <Upload className="w-4 h-4" />
+                        Dosya Yükle
+
+                        <input
+                          ref={fileInputRef2}
+                          type="file"
+                          accept={AUDIO_ACCEPT}
+                          onPointerDown={() => {
+                            fileDialogOpenRef.current = true;
+                          }}
+                          onChange={handleFileUpload}
+                          className="hidden"
                         />
-                      ))}
+                      </label>
                     </div>
-                  )}
 
-                  <YouTubeRangePicker
-                    ytDurationSec={ytDurationSec}
-                    formData={formData}
-                    setFormData={setFormData}
-                  />
-                </>
-              )}
+                    {formData.yukluDosyalar.length > 0 && (
+                      <div className="mt-4 space-y-4">
+                        <div className="text-sm font-medium text-stone-700">
+                          Yüklediğin dosya(lar) – burada kırpabilirsin:
+                        </div>
+
+                        {formData.yukluDosyalar.map((dosya) => (
+                          <DosyaTrimmer
+                            key={dosya.id}
+                            dosya={dosya}
+                            onRemove={removeDosya}
+                            onUpdate={updateDosya}
+                          />
+                        ))}
+                      </div>
+                    )}
+
+                    <YouTubeRangePicker
+                      ytDurationSec={ytDurationSec}
+                      formData={formData}
+                      setFormData={setFormData}
+                    />
+                  </>
+                )}
+              </div>
             </div>
+
+            <button
+              type="button"
+              disabled={submitDisabled || isSubmitting}
+              onClick={handleSubmit}
+              className={`w-full py-4 rounded-xl font-semibold text-lg transition shadow-lg
+                ${
+                  submitDisabled || isSubmitting
+                    ? "bg-stone-300 text-stone-500 cursor-not-allowed"
+                    : "bg-gradient-to-r from-amber-700 to-yellow-600 text-white hover:from-amber-800 hover:to-yellow-700"
+                }`}
+            >
+              {isSubmitting ? "Gönderiliyor…" : "Siparişi Tamamla"}
+            </button>
+
+            <p className="text-xs text-stone-500 text-center mt-4">
+              Siparişiniz alındıktan sonra sizinle iletişime geçeceğiz
+            </p>
           </div>
-
-          <button
-            type="button"
-            disabled={submitDisabled || isSubmitting}
-            onClick={handleSubmit}
-            className={`w-full py-4 rounded-xl font-semibold text-lg transition shadow-lg
-              ${
-                submitDisabled || isSubmitting
-                  ? "bg-stone-300 text-stone-500 cursor-not-allowed"
-                  : "bg-gradient-to-r from-amber-700 to-yellow-600 text-white hover:from-amber-800 hover:to-yellow-700"
-              }`}
-          >
-            {isSubmitting ? "Gönderiliyor…" : "Siparişi Tamamla"}
-          </button>
-
-          <p className="text-xs text-stone-500 text-center mt-4">
-            Siparişiniz alındıktan sonra sizinle iletişime geçeceğiz
-          </p>
         </div>
       </div>
-    </div>
 
-    <style>{`
-      @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
-    `}</style>
-  </>
-);
-
+      <style>{`
+        @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+      `}</style>
+    </>
+  );
+}
 
 function Input({ label, value, onChange, placeholder, type = "text" }) {
   return (
