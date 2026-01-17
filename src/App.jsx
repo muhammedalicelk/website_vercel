@@ -632,14 +632,111 @@ useEffect(() => {
       return out;
     };
 
-    try {
-      let uploaded16k = [];
+    const fetchBlobFromPublicUrl = async (url) => {
+  const r = await fetch(url, { cache: "no-store" });
+  if (!r.ok) throw new Error(`Preview indirilemedi: ${url}`);
+  return await r.blob();
+};
 
-      if (activeTab === "yukle" && formData.yukluDosyalar.length > 0) {
-        setSubmitMsg("16 kHz ses dosyası hazırlanıyor…");
-        uploaded16k = await upload16kFromLocalFiles(orderId);
-        setSubmitMsg("Dosyalar yükleniyor…");
-      }
+// MP3 -> AudioBuffer decode + start/end crop + 16k mono WAV blob
+const blobTo16kWavBlob = async (blob, trimStart, trimEnd, targetSampleRate = 16000) => {
+  const arrayBuffer = await blob.arrayBuffer();
+  const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+  const decoded = await audioCtx.decodeAudioData(arrayBuffer);
+
+  const safeStart = Math.max(0, Number(trimStart) || 0);
+  const safeEnd = Math.min(Number(trimEnd) || 0, decoded.duration || safeStart);
+
+  if (!isFinite(safeStart) || !isFinite(safeEnd) || safeEnd <= safeStart) {
+    audioCtx.close?.();
+    throw new Error("Geçersiz trim aralığı");
+  }
+
+  const startSample = Math.floor(safeStart * decoded.sampleRate);
+  const endSample = Math.floor(safeEnd * decoded.sampleRate);
+  const frameCount = Math.max(1, endSample - startSample);
+
+  // mono mix
+  const mono = audioCtx.createBuffer(1, frameCount, decoded.sampleRate);
+  const out = mono.getChannelData(0);
+
+  for (let ch = 0; ch < decoded.numberOfChannels; ch++) {
+    const data = decoded.getChannelData(ch);
+    for (let i = 0; i < frameCount; i++) {
+      out[i] += data[startSample + i] / decoded.numberOfChannels;
+    }
+  }
+
+  // resample
+  const offline = new OfflineAudioContext(
+    1,
+    Math.ceil((frameCount / decoded.sampleRate) * targetSampleRate),
+    targetSampleRate
+  );
+
+  const src = offline.createBufferSource();
+  src.buffer = mono;
+  src.connect(offline.destination);
+  src.start(0);
+
+  const rendered = await offline.startRendering();
+  audioCtx.close?.();
+
+  return audioBufferToWavBlob(rendered); // sende zaten var
+};
+
+const upload16kFromHazirClips = async (orderId) => {
+  const clips = formData.hazirClips || [];
+  const out = [];
+
+  for (const c of clips) {
+    const start = Number(c.start ?? 0);
+    const end = Number(c.end ?? 0);
+    if (!isFinite(start) || !isFinite(end) || end <= start) continue;
+
+    // Hazır’daki toyUrl zaten 16k mp3 ama biz seçilen aralığı WAV’a çevirip aynı sistemle upload ediyoruz
+    const toyUrl = c.toyUrl || `/previews16k/${c.songId}.mp3`;
+
+    const mp3Blob = await fetchBlobFromPublicUrl(toyUrl);
+    const wavBlob = await blobTo16kWavBlob(mp3Blob, start, end, 16000);
+
+    const safeName = `${Date.now()}_${c.clipId || c.songId || "hazir"}.wav`;
+    const pathname = `orders/${orderId}/16k/${safeName}`;
+
+    const blob = await upload(pathname, wavBlob, {
+      access: "public",
+      handleUploadUrl: "/api/upload",
+      contentType: "audio/wav",
+    });
+
+    out.push({
+      source: "hazir",
+      title: c.title,
+      youtubeId: c.youtubeId,
+      trimStart: start,
+      trimEnd: end,
+      blobPath: blob.pathname,
+      blobUrl: blob.url,
+    });
+  }
+
+  return out;
+};
+
+    try {
+    let uploaded16k = [];
+
+if (activeTab === "yukle" && formData.yukluDosyalar.length > 0) {
+  setSubmitMsg("16 kHz ses dosyası hazırlanıyor…");
+  uploaded16k = await upload16kFromLocalFiles(orderId);
+  setSubmitMsg("Dosyalar yükleniyor…");
+}
+
+if (activeTab === "hazir" && (formData.hazirClips || []).length > 0) {
+  setSubmitMsg("16 kHz hazır müzik hazırlanıyor…");
+  uploaded16k = await upload16kFromHazirClips(orderId);
+  setSubmitMsg("Dosyalar yükleniyor…");
+}
 
       console.log("UPLOADED_16K_FINAL", uploaded16k);
 
