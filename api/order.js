@@ -52,12 +52,34 @@ export default async function handler(req, res) {
     let files16kText = '';
     if (Array.isArray(d.uploaded16k) && d.uploaded16k.length > 0) {
       const lines = d.uploaded16k.map((f, i) => {
-        const name = f.originalName || '-';
+        const name = f.originalName || f.title || '-';
         const s = f.trimStart ?? 0;
         const e = f.trimEnd ?? 0;
         return `${i + 1}) ${name} (${fmt(s)}–${fmt(e)})\n${f.blobUrl || f.blobPath || '-'}`;
       });
       files16kText = `\n\n🎛️ 16 kHz WAV (Blob):\n` + lines.join('\n\n');
+    }
+
+    // ✅ YouTube (internet tab) detayları
+    let ytText = '';
+    if (d.activeTab === 'internet') {
+      const dur = Number(d.ytDurationSec) || 0;
+      const s = Number(d.ytStartSec);
+      const e = Number(d.ytEndSec);
+
+      ytText += `\n\n🌐 YouTube:\n🔗 ${d.youtubeLink || '-'}`;
+
+      if (dur > 0) {
+        ytText += `\n⏱️ Video Süresi: ${fmt(dur)}`;
+      } else {
+        ytText += `\n⏱️ Video Süresi: -`;
+      }
+
+      if (Number.isFinite(s) && Number.isFinite(e) && e > s) {
+        ytText += `\n✂️ Seçim: ${fmt(s)}–${fmt(e)} | ${fmt(e - s)}`;
+      } else {
+        ytText += `\n✂️ Seçim: belirtilmedi`;
+      }
     }
 
     const text = `
@@ -66,16 +88,19 @@ export default async function handler(req, res) {
 👤 Ad Soyad: ${d.musteriAdi || '-'}
 📞 Telefon: ${d.telefon || '-'}
 🎵 Sekme: ${d.activeTab || '-'}
-🆔 OrderId: ${d.orderId || '-'}${hazirText}${files16kText}
+🆔 OrderId: ${d.orderId || '-'}${hazirText}${files16kText}${ytText}
 
-${d.youtubeLink ? `\n🔗 YouTube: ${d.youtubeLink}` : ''}
 ${d.yukluDosyaAdlari?.length ? `\n📁 Orijinal Dosyalar: ${d.yukluDosyaAdlari.join(', ')}` : ''}
     `.trim();
 
     const tg = await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ chat_id: CHAT_ID, text }),
+      body: JSON.stringify({
+        chat_id: CHAT_ID,
+        text,
+        disable_web_page_preview: true,
+      }),
     });
 
     const result = await tg.json();
