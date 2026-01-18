@@ -723,71 +723,95 @@ const upload16kFromHazirClips = async (orderId) => {
   return out;
 };
 
-    try {
-    let uploaded16k = [];
+   try {
+  let uploaded16k = [];
 
-if (activeTab === "yukle" && formData.yukluDosyalar.length > 0) {
-  setSubmitMsg("16 kHz ses dosyası hazırlanıyor…");
-  uploaded16k = await upload16kFromLocalFiles(orderId);
-  setSubmitMsg("Dosyalar yükleniyor…");
+  // 1) 16k üret + upload (tab'a göre)
+  if (activeTab === "yukle" && formData.yukluDosyalar.length > 0) {
+    setSubmitMsg("16 kHz ses dosyası hazırlanıyor…");
+    uploaded16k = await upload16kFromLocalFiles(orderId);
+    setSubmitMsg("Dosyalar yükleniyor…");
+  }
+
+  if (activeTab === "hazir" && (formData.hazirClips || []).length > 0) {
+    setSubmitMsg("16 kHz hazır müzik hazırlanıyor…");
+    uploaded16k = await upload16kFromHazirClips(orderId);
+    setSubmitMsg("Dosyalar yükleniyor…");
+  }
+
+  console.log("UPLOADED_16K_FINAL", uploaded16k);
+
+  // 2) YouTube alanlarını hazırla (internet tab)
+  const ytStartSec =
+    formData.ytStartSec !== "" ? Number(formData.ytStartSec) : null;
+  const ytEndSec =
+    formData.ytEndSec !== "" ? Number(formData.ytEndSec) : null;
+
+  // Debug istersen:
+  console.log("SEND_YT_FIELDS", {
+    activeTab,
+    youtubeLink: formData.youtubeLink,
+    internetVideoId,
+    ytDurationSec,
+    ytStartSec,
+    ytEndSec,
+  });
+
+  // 3) Order'ı kaydet + Telegram'a gönder
+  setSubmitMsg("Sipariş kaydediliyor…");
+  const resp = await fetch("/api/order", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      musteriAdi: formData.musteriAdi,
+      telefon: formData.telefon,
+      activeTab,
+      orderId,
+      uploaded16k,
+
+      hazirClips: (formData.hazirClips || []).map((c) => ({
+        title: c.title,
+        youtubeId: c.youtubeId,
+        start: c.start,
+        end: c.end,
+      })),
+
+      youtubeLink: formData.youtubeLink || "",
+      internetVideoId: internetVideoId || "",
+
+      // ✅ YouTube süre/aralık bilgileri
+      ytDurationSec: Number(ytDurationSec) || 0,
+      ytStartSec,
+      ytEndSec,
+
+      yukluDosyaAdlari: (formData.yukluDosyalar || []).map((f) => f.name),
+    }),
+  });
+
+  const j = await resp.json();
+  if (!j.ok) {
+    alert(
+      "Sipariş oluşturulamadı lütfen daha sonra tekrar deneyiniz. " +
+        (j.error || "unknown")
+    );
+    return;
+  }
+
+  alert("Siparişiniz alındı! En kısa sürede sizinle iletişime geçeceğiz.");
+
+  console.log("Sipariş Detayları:", formData);
+  console.log("Seçilen Hazır Müzik:", selectedSong);
+  console.log("İnternet VideoId:", internetVideoId);
+} catch (e) {
+  alert(
+    "Sipariş oluşturulamadı lütfen daha sonra tekrar deneyiniz. " +
+      (e?.message || e)
+  );
+  return;
+} finally {
+  setIsSubmitting(false);
+  setSubmitMsg("");
 }
-
-if (activeTab === "hazir" && (formData.hazirClips || []).length > 0) {
-  setSubmitMsg("16 kHz hazır müzik hazırlanıyor…");
-  uploaded16k = await upload16kFromHazirClips(orderId);
-  setSubmitMsg("Dosyalar yükleniyor…");
-}
-
-      console.log("UPLOADED_16K_FINAL", uploaded16k);
-
-      setSubmitMsg("Sipariş kaydediliyor…");
-      const resp = await fetch("/api/order", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          musteriAdi: formData.musteriAdi,
-          telefon: formData.telefon,
-          activeTab,
-          orderId,
-          uploaded16k,
-
-          hazirClips: (formData.hazirClips || []).map((c) => ({
-            title: c.title,
-            youtubeId: c.youtubeId,
-            start: c.start,
-            end: c.end,
-          })),
-
-          youtubeLink: formData.youtubeLink || "",
-          internetVideoId: internetVideoId || "",
-          yukluDosyaAdlari: (formData.yukluDosyalar || []).map((f) => f.name),
-        }),
-      });
-
-      const j = await resp.json();
-      if (!j.ok) {
-        alert(
-          "Sipariş oluşturulamadı lütfen daha sonra tekrar deneyiniz. " +
-            (j.error || "unknown")
-        );
-        return;
-      }
-
-      alert("Siparişiniz alındı! En kısa sürede sizinle iletişime geçeceğiz.");
-      console.log("Sipariş Detayları:", formData);
-      console.log("Seçilen Hazır Müzik:", selectedSong);
-      console.log("İnternet VideoId:", internetVideoId);
-    } catch (e) {
-      alert(
-        "Sipariş oluşturulamadı lütfen daha sonra tekrar deneyiniz. " +
-          (e?.message || e)
-      );
-      return;
-    } finally {
-      setIsSubmitting(false);
-      setSubmitMsg("");
-    }
-  };
 
   return (
     <>
