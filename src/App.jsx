@@ -811,7 +811,7 @@ const upload16kFromHazirClips = async (orderId) => {
 } finally {
   setIsSubmitting(false);
   setSubmitMsg("");
-}
+}};
 
   return (
     <>
