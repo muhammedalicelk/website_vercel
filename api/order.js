@@ -20,6 +20,15 @@ export default async function handler(req, res) {
       return `${m}:${String(r).padStart(2, '0')}`;
     };
 
+    // Debug (Vercel logs’ta görürsün)
+    console.log('ORDER_INTERNET_FIELDS', {
+      activeTab: d.activeTab,
+      ytDurationSec: d.ytDurationSec,
+      ytStartSec: d.ytStartSec,
+      ytEndSec: d.ytEndSec,
+      youtubeLink: d.youtubeLink,
+    });
+
     // ✅ Çoklu hazır klipleri Telegram'a yaz
     let hazirText = '';
     if (d.activeTab === 'hazir') {
@@ -60,25 +69,21 @@ export default async function handler(req, res) {
       files16kText = `\n\n🎛️ 16 kHz WAV (Blob):\n` + lines.join('\n\n');
     }
 
-    // ✅ YouTube (internet tab) detayları
-    // Not: Client bazen ytStartSec/ytEndSec boş gönderiyor. Burada default 0-30 basıyoruz ki Telegram boş kalmasın.
+    // ✅ YouTube (internet tab) detayları (default yok!)
     let ytText = '';
     if (d.activeTab === 'internet') {
       const dur = Number(d.ytDurationSec) || 0;
-
-      let s = Number(d.ytStartSec);
-      let e = Number(d.ytEndSec);
-
-      // default: kullanıcı aralık seçmediyse 0-30
-      const hasRange = Number.isFinite(s) && Number.isFinite(e) && e > s;
-      if (!hasRange) {
-        s = 0;
-        e = 30;
-      }
+      const s = Number(d.ytStartSec);
+      const e = Number(d.ytEndSec);
 
       ytText += `\n\n🌐 YouTube:\n🔗 ${d.youtubeLink || '-'}`;
       ytText += `\n⏱️ Video Süresi: ${dur > 0 ? fmt(dur) : '-'}`;
-      ytText += `\n✂️ Seçim: ${fmt(s)}–${fmt(e)} | ${fmt(e - s)}`;
+
+      if (Number.isFinite(s) && Number.isFinite(e) && e > s) {
+        ytText += `\n✂️ Seçim: ${fmt(s)}–${fmt(e)} | ${fmt(e - s)}`;
+      } else {
+        ytText += `\n✂️ Seçim: belirtilmedi`;
+      }
     }
 
     const text = `
