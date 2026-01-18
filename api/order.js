@@ -14,9 +14,9 @@ export default async function handler(req, res) {
     const d = req.body || {};
 
     const fmt = (sec) => {
-      const s = Math.max(0, Number(sec) || 0);
+      const s = Math.max(0, Math.floor(Number(sec) || 0));
       const m = Math.floor(s / 60);
-      const r = Math.floor(s % 60);
+      const r = s % 60;
       return `${m}:${String(r).padStart(2, '0')}`;
     };
 
@@ -61,25 +61,24 @@ export default async function handler(req, res) {
     }
 
     // ✅ YouTube (internet tab) detayları
+    // Not: Client bazen ytStartSec/ytEndSec boş gönderiyor. Burada default 0-30 basıyoruz ki Telegram boş kalmasın.
     let ytText = '';
     if (d.activeTab === 'internet') {
       const dur = Number(d.ytDurationSec) || 0;
-      const s = Number(d.ytStartSec);
-      const e = Number(d.ytEndSec);
+
+      let s = Number(d.ytStartSec);
+      let e = Number(d.ytEndSec);
+
+      // default: kullanıcı aralık seçmediyse 0-30
+      const hasRange = Number.isFinite(s) && Number.isFinite(e) && e > s;
+      if (!hasRange) {
+        s = 0;
+        e = 30;
+      }
 
       ytText += `\n\n🌐 YouTube:\n🔗 ${d.youtubeLink || '-'}`;
-
-      if (dur > 0) {
-        ytText += `\n⏱️ Video Süresi: ${fmt(dur)}`;
-      } else {
-        ytText += `\n⏱️ Video Süresi: -`;
-      }
-
-      if (Number.isFinite(s) && Number.isFinite(e) && e > s) {
-        ytText += `\n✂️ Seçim: ${fmt(s)}–${fmt(e)} | ${fmt(e - s)}`;
-      } else {
-        ytText += `\n✂️ Seçim: belirtilmedi`;
-      }
+      ytText += `\n⏱️ Video Süresi: ${dur > 0 ? fmt(dur) : '-'}`;
+      ytText += `\n✂️ Seçim: ${fmt(s)}–${fmt(e)} | ${fmt(e - s)}`;
     }
 
     const text = `
