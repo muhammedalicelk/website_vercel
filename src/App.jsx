@@ -404,9 +404,9 @@ export default function SesliOyuncakSiparis() {
   useEffect(() => {
     if (typeof document === "undefined") return;
 
-    document.title = "Memory Drop Studio Ön Sipariş Ekranı";
+    document.title = "Memora Ön Sipariş Ekranı";
 
-    const href = "/memory-drop-logo.png";
+    const href = "/memora-bg.png";
     let link = document.querySelector("link[rel='icon']");
     if (!link) {
       link = document.createElement("link");
@@ -897,8 +897,8 @@ export default function SesliOyuncakSiparis() {
               }}
             >
               <img
-                src="/memory-drop-logo.png"
-                alt="Memory Drop Studio"
+                src="/memora-bg.png"
+                alt="MEMORA"
                 className="w-full h-full object-cover"
                 draggable={false}
                 onError={(e) => {
@@ -908,7 +908,7 @@ export default function SesliOyuncakSiparis() {
             </div>
 
           <h1 className="text-3xl font-bold mb-2" style={{ color: "var(--text-primary)" }}>
-              Memory Drop Studio Ön Sipariş Ekranı
+              Memora Ön Sipariş Ekranı
             </h1>
             <p style={{ color: "var(--text-secondary)" }}>Sevdikleriniz için özel, sesli bir oyuncak oluşturun!</p>
           </div>
