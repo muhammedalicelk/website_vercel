@@ -1,13 +1,71 @@
-
 import { upload } from "@vercel/blob/client";
-import React, { useState, useRef, useEffect, useMemo } from 'react';
-import { Music, Upload, Globe, User, Play, Pause, X, AlertCircle } from 'lucide-react';
-const AUDIO_ACCEPT = 'audio/*';
+import React, { useState, useRef, useEffect, useMemo } from "react";
+import { Music, Upload, User, X, AlertCircle } from "lucide-react";
+
+const AUDIO_ACCEPT = "audio/*";
 const MAX_TOTAL_SEC = 310;
 const MIN_GAP = 0.05;
 const STEP_FINE = 0.005;
+const MAX_RANGE_SEC = 310; // 5dk 10sn
 
+/* =========================================================
+   THEME (from your JSON) - injected as CSS variables
+   ========================================================= */
+const THEME_VARS = `
+:root{
+  --bg-primary:#B8343A;
+  --bg-secondary:#E86A6A;
+  --text-primary:#F3D6B5;
+  --text-secondary:#F8E6CF;
+  --text-muted:#E0BFA0;
+  --text-inverse:#FFFFFF;
+  --accent:#C97A5B;
+  --accent-dark:#A85A3A;
+  --wave-primary:#3E6B4A;
+  --wave-dark:#2F5238;
+  --flower-petal:#FFFFFF;
+  --flower-center:#F2C94C;
+  --ui-btn-bg:#C97A5B;
+  --ui-btn-text:#FFFFFF;
+  --ui-btn-hover:#A85A3A;
+  --ui-input-bg:#FFFFFF;
+  --ui-input-border:#E0BFA0;
+  --ui-input-text:#3A1F1F;
+  --danger:#9B2C2C;
+  --danger-bg:rgba(155,44,44,0.12);
+  --danger-border:rgba(155,44,44,0.25);
+  --soft-border:rgba(255,255,255,0.18);
+  --soft-bg:rgba(255,255,255,0.10);
+}
+`;
 
+// Helper styles (no Tailwind color palette usage)
+const S = {
+  pageBg: {
+    background: "radial-gradient(circle, var(--bg-primary) 0%, var(--bg-secondary) 70%)",
+  },
+  card: {
+    background: "white",
+  },
+  textPrimary: { color: "var(--text-primary)" },
+  textSecondary: { color: "var(--text-secondary)" },
+  textMuted: { color: "var(--text-muted)" },
+  titleOnWhite: { color: "var(--bg-primary)" },
+  bodyOnWhite: { color: "var(--ui-input-text)" },
+  btnPrimary: {
+    background: "var(--ui-btn-bg)",
+    color: "var(--ui-btn-text)",
+  },
+  btnPrimaryHover: {
+    background: "var(--ui-btn-hover)",
+    color: "var(--ui-btn-text)",
+  },
+  input: {
+    background: "var(--ui-input-bg)",
+    borderColor: "var(--ui-input-border)",
+    color: "var(--ui-input-text)",
+  },
+};
 
 /* =========================================================
    YT + SONGS
@@ -16,85 +74,60 @@ function YT(title, youtubeId, extra = {}) {
   return {
     id: `yt_${youtubeId}`,
     title,
-    type: 'youtube',
+    type: "youtube",
     youtubeId,
     tags: extra.tags || [],
   };
 }
 
 const SONGS = [
-  /* =====================
-     ÇOCUK
-     ===================== */
-  /*  
-  YT('Kukuli – Bakkal Amca', 't8moJLzPhoU', { tags: ['Çocuk', 'Türkçe'] }),
-  YT('Dandini Dandini Dastana', '4NBBFSqv_GY', { tags: ['Çocuk', 'Türkçe'] }),
-  YT('Otobüsün Tekerleği Dönüyor', 'W-nWnHmC4Gc', { tags: ['Çocuk', 'Türkçe'] }),
-  YT('Arı Vız Vız', '9xOIKkvTOdE', { tags: ['Çocuk', 'Türkçe'] }),
-  YT('Ayı', 'QSGubfzxIa0', { tags: ['Çocuk', 'Türkçe'] }),
-  YT('Gezegenler', 'rGGZnh8W7Oo', { tags: ['Çocuk', 'Türkçe'] }),
-  YT('Twinkle Twinkle Little Star', 'yCjJyiqpAuU', { tags: ['Çocuk', 'İngilizce'] }),
-  */
-  /* =====================
-     TÜRKÇE ROMANTİK
-     ===================== */
-  YT('Sen Benim Şarkılarımsın', '9GEXm1k3a1E', { tags: ['Romantik', 'Türkçe'] }),
-  YT('Senden Daha Güzel', '3bfkyXtuIXk', { tags: ['Romantik', 'Türkçe'] }),
-  YT('Ben Bir Tek Kadın (Adam) Sevdim', '0Dps6y-Y-ko', { tags: ['Romantik', 'Türkçe'] }),
-  YT('Ben Sana Mecburum', 'GzDGB70IVCM', { tags: ['Romantik', 'Türkçe'] }),
-  YT('Aşk', 'CGNcI0Fsl9c', { tags: ['Romantik', 'Türkçe'] }),
+  /* TÜRKÇE ROMANTİK */
+  YT("Sen Benim Şarkılarımsın", "9GEXm1k3a1E", { tags: ["Romantik", "Türkçe"] }),
+  YT("Senden Daha Güzel", "3bfkyXtuIXk", { tags: ["Romantik", "Türkçe"] }),
+  YT("Ben Bir Tek Kadın (Adam) Sevdim", "0Dps6y-Y-ko", { tags: ["Romantik", "Türkçe"] }),
+  YT("Ben Sana Mecburum", "GzDGB70IVCM", { tags: ["Romantik", "Türkçe"] }),
+  YT("Aşk", "CGNcI0Fsl9c", { tags: ["Romantik", "Türkçe"] }),
 
-  /* =====================
-     R&B
-     ===================== */
-  YT("What You Won't Do For Love", 'n9DmdAwUbxc', { tags: ['R&B', 'İngilizce'] }),
+  /* R&B */
+  YT("What You Won't Do For Love", "n9DmdAwUbxc", { tags: ["R&B", "İngilizce"] }),
 
-  /* =====================
-     ROMANTİK – İSPANYOLCA
-     ===================== */
-  YT('La Mentira', 'P8BLkulZGX8', { tags: ['Romantik', 'İspanyolca'] }),
-  YT('Love In Portofino', 'AKDLoUSaPV8', { tags: ['Romantik', 'İspanyolca'] }),
-  YT('Besame Mucho', 'M4z6xdu1iX8', { tags: ['Romantik', 'İspanyolca'] }),
-  YT('Historia de un Amor', 'HzjE33U_gy8', { tags: ['Romantik', 'İspanyolca'] }),
+  /* ROMANTİK – İSPANYOLCA */
+  YT("La Mentira", "P8BLkulZGX8", { tags: ["Romantik", "İspanyolca"] }),
+  YT("Love In Portofino", "AKDLoUSaPV8", { tags: ["Romantik", "İspanyolca"] }),
+  YT("Besame Mucho", "M4z6xdu1iX8", { tags: ["Romantik", "İspanyolca"] }),
+  YT("Historia de un Amor", "HzjE33U_gy8", { tags: ["Romantik", "İspanyolca"] }),
 
-  /* =====================
-     ROMANTİK – İNGİLİZCE
-     ===================== */
-  YT('Dance Me to the End of Love', '8StKOyYY3Gs', { tags: ['Romantik', 'İngilizce'] }),
-  YT('I Love You Baby', 'AiIBKcd4m5Q', { tags: ['Romantik', 'İngilizce'] }),
-  YT('And I Love You So', 'SKp1HKM_4TY', { tags: ['Romantik', 'İngilizce'] }),
+  /* ROMANTİK – İNGİLİZCE */
+  YT("Dance Me to the End of Love", "8StKOyYY3Gs", { tags: ["Romantik", "İngilizce"] }),
+  YT("I Love You Baby", "AiIBKcd4m5Q", { tags: ["Romantik", "İngilizce"] }),
+  YT("And I Love You So", "SKp1HKM_4TY", { tags: ["Romantik", "İngilizce"] }),
 ];
 
 /* =========================================================
    Utils
    ========================================================= */
 function makeId() {
-  if (typeof crypto !== 'undefined' && crypto.randomUUID) return crypto.randomUUID();
+  if (typeof crypto !== "undefined" && crypto.randomUUID) return crypto.randomUUID();
   return `id_${Date.now()}_${Math.random().toString(16).slice(2)}`;
 }
-const MAX_RANGE_SEC = 310; // 5dk 10sn
-
 function clamp(n, min, max) {
   return Math.max(min, Math.min(max, n));
 }
-
 function toMS(totalSec) {
   const s = Math.max(0, Number(totalSec) || 0);
   const m = Math.floor(s / 60);
   const r = s % 60;
   return { m, s: r };
 }
-
 function fromMS(m, s) {
   return (Number(m) || 0) * 60 + (Number(s) || 0);
 }
-
 function fmtMS(totalSec) {
   const { m, s } = toMS(totalSec);
-  return `${m}:${String(s).padStart(2, '0')}`;
+  return `${m}:${String(s).padStart(2, "0")}`;
 }
 function extractYouTubeId(input) {
-  if (!input) return '';
+  if (!input) return "";
   const raw = input.trim();
   if (/^[a-zA-Z0-9_-]{11}$/.test(raw)) return raw;
 
@@ -110,45 +143,43 @@ function extractYouTubeId(input) {
     if (shortsMatch) return shortsMatch[1];
     const embedMatch = raw.match(/embed\/([a-zA-Z0-9_-]{11})/);
     if (embedMatch) return embedMatch[1];
-    return '';
+    return "";
   }
 
-  const host = (url.hostname || '').replace('www.', '');
-  const v = url.searchParams.get('v');
+  const host = (url.hostname || "").replace("www.", "");
+  const v = url.searchParams.get("v");
   if (v && /^[a-zA-Z0-9_-]{11}$/.test(v)) return v;
 
-  if (host === 'youtu.be') {
-    const id = url.pathname.split('/').filter(Boolean)[0] || '';
+  if (host === "youtu.be") {
+    const id = url.pathname.split("/").filter(Boolean)[0] || "";
     if (/^[a-zA-Z0-9_-]{11}$/.test(id)) return id;
   }
 
-  if (url.pathname.includes('/shorts/')) {
-    const parts = url.pathname.split('/').filter(Boolean);
-    const idx = parts.indexOf('shorts');
-    const id = idx >= 0 ? parts[idx + 1] : '';
+  if (url.pathname.includes("/shorts/")) {
+    const parts = url.pathname.split("/").filter(Boolean);
+    const idx = parts.indexOf("shorts");
+    const id = idx >= 0 ? parts[idx + 1] : "";
     if (/^[a-zA-Z0-9_-]{11}$/.test(id)) return id;
   }
 
-  if (url.pathname.includes('/embed/')) {
-    const parts = url.pathname.split('/').filter(Boolean);
-    const idx = parts.indexOf('embed');
-    const id = idx >= 0 ? parts[idx + 1] : '';
+  if (url.pathname.includes("/embed/")) {
+    const parts = url.pathname.split("/").filter(Boolean);
+    const idx = parts.indexOf("embed");
+    const id = idx >= 0 ? parts[idx + 1] : "";
     if (/^[a-zA-Z0-9_-]{11}$/.test(id)) return id;
   }
 
-  if (host.endsWith('youtube.com') || host.endsWith('music.youtube.com')) {
+  if (host.endsWith("youtube.com") || host.endsWith("music.youtube.com")) {
     const m1 = url.pathname.match(/\/(v|embed)\/([a-zA-Z0-9_-]{11})/);
     if (m1) return m1[2];
   }
-
-  return '';
+  return "";
 }
-async function fileTo16kWavBlob(
-  file,
-  trimStart,
-  trimEnd,
-  targetSampleRate = 16000
-) {
+
+/* =========================================================
+   Audio convert helpers (unchanged logic)
+   ========================================================= */
+async function fileTo16kWavBlob(file, trimStart, trimEnd, targetSampleRate = 16000) {
   const arrayBuffer = await file.arrayBuffer();
   const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
   const decoded = await audioCtx.decodeAudioData(arrayBuffer);
@@ -157,7 +188,7 @@ async function fileTo16kWavBlob(
   const endSample = Math.floor(trimEnd * decoded.sampleRate);
   const frameCount = Math.max(1, endSample - startSample);
 
-  // mono buffer (oyuncak için ideal)
+  // mono mix
   const mono = audioCtx.createBuffer(1, frameCount, decoded.sampleRate);
   const out = mono.getChannelData(0);
 
@@ -168,7 +199,6 @@ async function fileTo16kWavBlob(
     }
   }
 
-  // resample
   const offline = new OfflineAudioContext(
     1,
     Math.ceil((frameCount / decoded.sampleRate) * targetSampleRate),
@@ -185,6 +215,7 @@ async function fileTo16kWavBlob(
 
   return audioBufferToWavBlob(rendered);
 }
+
 function audioBufferToWavBlob(buffer) {
   const numChannels = buffer.numberOfChannels;
   const sampleRate = buffer.sampleRate;
@@ -214,30 +245,39 @@ function audioBufferToWavBlob(buffer) {
   const view = new DataView(new ArrayBuffer(44 + dataSize));
   let offset = 0;
 
-  const writeString = (s) => {
-    for (let i = 0; i < s.length; i++) view.setUint8(offset + i, s.charCodeAt(i));
-    offset += s.length;
+  const writeString = (str) => {
+    for (let i = 0; i < str.length; i++) view.setUint8(offset + i, str.charCodeAt(i));
+    offset += str.length;
   };
 
-  writeString('RIFF');
-  view.setUint32(offset, 36 + dataSize, true); offset += 4;
-  writeString('WAVE');
-  writeString('fmt ');
-  view.setUint32(offset, 16, true); offset += 4;
-  view.setUint16(offset, 1, true); offset += 2; // PCM
-  view.setUint16(offset, numChannels, true); offset += 2;
-  view.setUint32(offset, sampleRate, true); offset += 4;
-  view.setUint32(offset, byteRate, true); offset += 4;
-  view.setUint16(offset, blockAlign, true); offset += 2;
-  view.setUint16(offset, bitDepth, true); offset += 2;
-  writeString('data');
-  view.setUint32(offset, dataSize, true); offset += 4;
+  writeString("RIFF");
+  view.setUint32(offset, 36 + dataSize, true);
+  offset += 4;
+  writeString("WAVE");
+  writeString("fmt ");
+  view.setUint32(offset, 16, true);
+  offset += 4;
+  view.setUint16(offset, 1, true);
+  offset += 2; // PCM
+  view.setUint16(offset, numChannels, true);
+  offset += 2;
+  view.setUint32(offset, sampleRate, true);
+  offset += 4;
+  view.setUint32(offset, byteRate, true);
+  offset += 4;
+  view.setUint16(offset, blockAlign, true);
+  offset += 2;
+  view.setUint16(offset, bitDepth, true);
+  offset += 2;
+  writeString("data");
+  view.setUint32(offset, dataSize, true);
+  offset += 4;
 
   for (let i = 0; i < pcm.length; i++, offset += 2) {
     view.setInt16(offset, pcm[i], true);
   }
 
-  return new Blob([view], { type: 'audio/wav' });
+  return new Blob([view], { type: "audio/wav" });
 }
 
 const NOTICE_TEXT = `Bu sayfa seri üretim öncesi deneme üretimi kapsamında oluşturulmuştur.
@@ -245,226 +285,153 @@ const NOTICE_TEXT = `Bu sayfa seri üretim öncesi deneme üretimi kapsamında o
 Amaç kullanıcı geri bildirimi ve ürün geliştirmedir. Fatura düzenlenmemektedir.
 Katılım bedeli ve kargo daha sonraki aşamada paylaşılacaktır.`;
 
+/* =========================================================
+   MAIN
+   ========================================================= */
 export default function SesliOyuncakSiparis() {
- const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitMsg, setSubmitMsg] = useState("");
 
-   const fileDialogOpenRef = useRef(false);
-const fileInputRef = useRef(null);
-   const fmtSec2 = (n) => (Math.max(0, Number(n) || 0)).toFixed(2);
-       
-const fileInputRef2 = useRef(null);
-  const [activeTab, setActiveTab] = useState('hazir');
- const [ytDurationSec, setYtDurationSec] = useState(null);
-const [formData, setFormData] = useState({
-  musteriAdi: '',
-  telefon: '',
- hazirClips: [],
-  yukluDosyalar: [],
-  youtubeLink: '',
+  const fileDialogOpenRef = useRef(false);
+  const fileInputRef = useRef(null);
+  const fileInputRef2 = useRef(null);
 
-  // 👇 YENİ
-  ytStartSec: '',
-  ytEndSec: '',
-});
+  const [activeTab, setActiveTab] = useState("hazir");
+  const [ytDurationSec, setYtDurationSec] = useState(null);
+
+  const [formData, setFormData] = useState({
+    musteriAdi: "",
+    telefon: "",
+    hazirClips: [],
+    yukluDosyalar: [],
+    youtubeLink: "",
+    ytStartSec: "",
+    ytEndSec: "",
+  });
+
+  const fmtSec2 = (n) => (Math.max(0, Number(n) || 0)).toFixed(2);
 
   const [showNotice, setShowNotice] = useState(false);
+
   const totalSec = useMemo(() => {
     return (formData.hazirClips || []).reduce((sum, c) => sum + Math.max(0, c.end - c.start), 0);
   }, [formData.hazirClips]);
-    const remaining = Math.max(0, MAX_TOTAL_SEC - totalSec);
-   const clearUploads = (uploads = []) => {
-  uploads.forEach((f) => {
-    try { if (f?.url) URL.revokeObjectURL(f.url); } catch {}
-    try { if (f?.preview16kUrl) URL.revokeObjectURL(f.preview16kUrl); } catch {}
-  });
-};
 
-const resetByTab = (tab) => {
-  setFormData((p) => {
-    const prevUploads = p.yukluDosyalar || [];
+  const hazirTotalSec = useMemo(() => {
+    return (formData.hazirClips || []).reduce(
+      (sum, c) => sum + Math.max(0, (Number(c.end) || 0) - (Number(c.start) || 0)),
+      0
+    );
+  }, [formData.hazirClips]);
 
-    // her tab değişiminde upload url temizle
-    prevUploads.forEach((f) => {
-      try { if (f?.url) URL.revokeObjectURL(f.url); } catch {}
-      try { if (f?.preview16kUrl) URL.revokeObjectURL(f.preview16kUrl); } catch {}
-    });
+  const internetVideoId = useMemo(() => extractYouTubeId(formData.youtubeLink), [formData.youtubeLink]);
 
-    // her şey sıfırlanır (musteriAdi/telefon kalsın)
-    const base = {
-      ...p,
-      hazirClips: [],
-      yukluDosyalar: [],
-      youtubeLink: '',
-      ytStartSec: '',
-      ytEndSec: '',
+  useEffect(() => {
+    if (!internetVideoId) setYtDurationSec(null);
+  }, [internetVideoId]);
+
+  useEffect(() => {
+    if (!internetVideoId) {
+      setYtDurationSec(null);
+      setFormData((p) => ({ ...p, ytStartSec: "", ytEndSec: "" }));
+    }
+  }, [internetVideoId]);
+
+  useEffect(() => {
+    if (window.YT && window.YT.Player) return;
+    if (document.querySelector('script[data-yt-iframe-api="1"]')) return;
+
+    const tag = document.createElement("script");
+    tag.src = "https://www.youtube.com/iframe_api";
+    tag.async = true;
+    tag.dataset.ytIframeApi = "1";
+    document.body.appendChild(tag);
+  }, []);
+
+  useEffect(() => {
+    setShowNotice(true);
+  }, []);
+
+  // Fix file dialog focus issues (same logic)
+  useEffect(() => {
+    const cleanupAfterFileDialog = () => {
+      if (!fileDialogOpenRef.current) return;
+      fileDialogOpenRef.current = false;
+
+      setTimeout(() => {
+        fileInputRef.current?.blur?.();
+        fileInputRef2.current?.blur?.();
+        if (document.activeElement && document.activeElement !== document.body) {
+          document.activeElement.blur?.();
+        }
+      }, 0);
     };
 
-    // sadece hangi tab'a geçtiğine göre "gerekli alanları" açık bırak
-    if (tab === 'internet') {
-      // internet'e girerken isterse link boş kalsın zaten
-      return base;
-    }
+    const onFocus = () => cleanupAfterFileDialog();
+    const onVisibility = () => {
+      if (document.visibilityState === "visible") cleanupAfterFileDialog();
+    };
 
-    if (tab === 'yukle') {
-      return base;
-    }
+    window.addEventListener("focus", onFocus);
+    document.addEventListener("visibilitychange", onVisibility);
 
-    // hazir
-    return base;
-  });
+    return () => {
+      window.removeEventListener("focus", onFocus);
+      document.removeEventListener("visibilitychange", onVisibility);
+    };
+  }, []);
 
-  setYtDurationSec(null);
-  setActiveTab(tab);
-};
-
-useEffect(() => {
-  const cleanupAfterFileDialog = () => {
-    if (!fileDialogOpenRef.current) return;
-    fileDialogOpenRef.current = false;
-
-    setTimeout(() => {
-      fileInputRef.current?.blur?.();
-      fileInputRef2.current?.blur?.();
-      if (document.activeElement && document.activeElement !== document.body) {
-        document.activeElement.blur?.();
-      }
-    }, 0);
-  };
-
-  const onFocus = () => cleanupAfterFileDialog();
-  const onVisibility = () => {
-    if (document.visibilityState === 'visible') cleanupAfterFileDialog();
-  };
-
-  window.addEventListener('focus', onFocus);
-  document.addEventListener('visibilitychange', onVisibility);
-
-  return () => {
-    window.removeEventListener('focus', onFocus);
-    document.removeEventListener('visibilitychange', onVisibility);
-  };
-}, []);
- const internetVideoId = useMemo(
-    () => extractYouTubeId(formData.youtubeLink),
-    [formData.youtubeLink]
-  );
-   useEffect(() => {
-  // Link silindiyse / geçersizse, eski video süresi ekranda kalmasın
-  if (!internetVideoId) {
-    setYtDurationSec(null);
-  }
-}, [internetVideoId]);
- useEffect(() => {
-  if (!internetVideoId) {
-    setYtDurationSec(null);
-    setFormData((p) => ({ ...p, ytStartSec: '', ytEndSec: '' }));
-  }
-}, [internetVideoId]);
-
-useEffect(() => {
-  if (window.YT && window.YT.Player) return;
-  if (document.querySelector('script[data-yt-iframe-api="1"]')) return;
-
-  const tag = document.createElement('script');
-  tag.src = 'https://www.youtube.com/iframe_api';
-  tag.async = true;
-  tag.dataset.ytIframeApi = '1';
-  document.body.appendChild(tag);
-}, []);
-
- 
+  // Title + favicon (unchanged)
   useEffect(() => {
-  setShowNotice(true);
-}, []);
+    if (typeof document === "undefined") return;
 
- const hazirTotalSec = useMemo(() => {
-  return (formData.hazirClips || []).reduce(
-    (sum, c) => sum + Math.max(0, (Number(c.end) || 0) - (Number(c.start) || 0)),
-    0
-  );
-}, [formData.hazirClips]);
- const submitDisabled = useMemo(() => {
+    document.title = "Memory Drop Studio Ön Sipariş Ekranı";
 
-    // temel zorunlular
-    if (!formData.musteriAdi.trim()) return true;
-    if (!formData.telefon.trim()) return true;
-
-    if (activeTab === 'hazir') {
-  const clips = formData.hazirClips || [];
-  if (clips.length === 0) return true;
-
-  const total = hazirTotalSec;
-  if (total > MAX_TOTAL_SEC + 0.01) return true;
-
-  const anyMissing = clips.some((c) => c.toyOk === false);
-  if (anyMissing) return true;
-}
-
-    if (activeTab === 'yukle') {
-      if (!formData.yukluDosyalar || formData.yukluDosyalar.length === 0) return true;
-      // en az 1 dosya metadata hazır olmalı (isteğe bağlı)
-      const anyReady = formData.yukluDosyalar.some((f) => f?.isReady);
-      if (!anyReady) return true;
-      // süre limitini aşan var mı (isteğe bağlı)
-      const anyTooLong = formData.yukluDosyalar.some((f) => (f.trimEnd - f.trimStart) > 310);
-      if (anyTooLong) return true;
-    }
-
-    if (activeTab === 'internet') {
-      // youtube linki geçerli mi
-      if (!internetVideoId) return true;
-
-      // video uzun ve kullanıcı ne dosya yüklemiş ne aralık girmişse disable
-      const hasUpload = (formData.yukluDosyalar || []).length > 0;
-      const hasManualRange = formData.ytStartSec !== '' && formData.ytEndSec !== '';
-
-      if (ytDurationSec && ytDurationSec > 310 && !hasUpload && !hasManualRange) return true;
-
-      if (hasManualRange) {
-        const start = Number(formData.ytStartSec);
-        const end = Number(formData.ytEndSec);
-        if (!Number.isFinite(start) || !Number.isFinite(end) || end <= start) return true;
-        if (end - start > 310) return true;
-        if (ytDurationSec && end > ytDurationSec) return true;
-      }
-    }
-
-    return false;
-  }, [
-    formData.musteriAdi,
-    formData.telefon,
-    formData.hazirMuzikId,
-    formData.yukluDosyalar,
-    formData.ytStartSec,
-    formData.ytEndSec,
-    activeTab,
-    internetVideoId,
-    ytDurationSec,
-    hazirTotalSec,
-  ]);
-  useEffect(() => {
-    if (typeof document === 'undefined') return;
-
-    document.title = 'Memory Drop Studio Ön Sipariş Ekranı';
-
-    const href = '/memory-drop-logo.png';
+    const href = "/memory-drop-logo.png";
     let link = document.querySelector("link[rel='icon']");
     if (!link) {
-      link = document.createElement('link');
-      link.rel = 'icon';
+      link = document.createElement("link");
+      link.rel = "icon";
       document.head.appendChild(link);
     }
-    link.type = 'image/png';
+    link.type = "image/png";
     link.href = href;
   }, []);
+
+  const resetByTab = (tab) => {
+    setFormData((p) => {
+      const prevUploads = p.yukluDosyalar || [];
+      prevUploads.forEach((f) => {
+        try {
+          if (f?.url) URL.revokeObjectURL(f.url);
+        } catch {}
+        try {
+          if (f?.preview16kUrl) URL.revokeObjectURL(f.preview16kUrl);
+        } catch {}
+      });
+
+      const base = {
+        ...p,
+        hazirClips: [],
+        yukluDosyalar: [],
+        youtubeLink: "",
+        ytStartSec: "",
+        ytEndSec: "",
+      };
+
+      return base;
+    });
+
+    setYtDurationSec(null);
+    setActiveTab(tab);
+  };
 
   const handleFileUpload = async (e) => {
     const files = Array.from(e.target.files || []);
     const newFiles = files.map((file) => ({
-      preview16kUrl: '',
-       preview16kReady: false,
-       id: makeId(),
+      preview16kUrl: "",
+      preview16kReady: false,
+      id: makeId(),
       file,
       url: URL.createObjectURL(file),
       name: file.name,
@@ -474,13 +441,13 @@ useEffect(() => {
       isReady: false,
     }));
 
-   setFormData((p) => ({
-  ...p,
-  yukluDosyalar: [...p.yukluDosyalar, ...newFiles],
-}));
+    setFormData((p) => ({
+      ...p,
+      yukluDosyalar: [...p.yukluDosyalar, ...newFiles],
+    }));
 
-    e.target.value = '';
-     e.target.blur?.();
+    e.target.value = "";
+    e.target.blur?.();
   };
 
   const removeDosya = (id) => {
@@ -499,11 +466,64 @@ useEffect(() => {
     }));
   };
 
- const handleSubmit = async () => {
+  const submitDisabled = useMemo(() => {
+    if (!formData.musteriAdi.trim()) return true;
+    if (!formData.telefon.trim()) return true;
+
+    if (activeTab === "hazir") {
+      const clips = formData.hazirClips || [];
+      if (clips.length === 0) return true;
+
+      const total = hazirTotalSec;
+      if (total > MAX_TOTAL_SEC + 0.01) return true;
+
+      const anyMissing = clips.some((c) => c.toyOk === false);
+      if (anyMissing) return true;
+    }
+
+    if (activeTab === "yukle") {
+      if (!formData.yukluDosyalar || formData.yukluDosyalar.length === 0) return true;
+      const anyReady = formData.yukluDosyalar.some((f) => f?.isReady);
+      if (!anyReady) return true;
+      const anyTooLong = formData.yukluDosyalar.some((f) => f.trimEnd - f.trimStart > 310);
+      if (anyTooLong) return true;
+    }
+
+    if (activeTab === "internet") {
+      if (!internetVideoId) return true;
+
+      const hasUpload = (formData.yukluDosyalar || []).length > 0;
+      const hasManualRange = formData.ytStartSec !== "" && formData.ytEndSec !== "";
+
+      if (ytDurationSec && ytDurationSec > 310 && !hasUpload && !hasManualRange) return true;
+
+      if (hasManualRange) {
+        const start = Number(formData.ytStartSec);
+        const end = Number(formData.ytEndSec);
+        if (!Number.isFinite(start) || !Number.isFinite(end) || end <= start) return true;
+        if (end - start > 310) return true;
+        if (ytDurationSec && end > ytDurationSec) return true;
+      }
+    }
+
+    return false;
+  }, [
+    formData.musteriAdi,
+    formData.telefon,
+    formData.yukluDosyalar,
+    formData.ytStartSec,
+    formData.ytEndSec,
+    activeTab,
+    internetVideoId,
+    ytDurationSec,
+    hazirTotalSec,
+    formData.hazirClips,
+  ]);
+
+  const handleSubmit = async () => {
     if (isSubmitting) return;
 
-    // ---------------- VALIDASYONLAR (BURADA isSubmitting true YAPMIYORUZ) ----------------
-
+    // VALIDATIONS (same)
     if (!formData.musteriAdi.trim() || !formData.telefon.trim()) {
       alert("Lütfen ad ve telefon bilgilerini doldurunuz.");
       return;
@@ -516,11 +536,7 @@ useEffect(() => {
         return;
       }
 
-      const total = clips.reduce(
-        (s, c) => s + Math.max(0, Number(c.end) - Number(c.start)),
-        0
-      );
-
+      const total = clips.reduce((s, c) => s + Math.max(0, Number(c.end) - Number(c.start)), 0);
       if (total > MAX_TOTAL_SEC + 0.01) {
         alert("Toplam süre 310 sn’yi aşıyor. Lütfen kısaltın.");
         return;
@@ -528,9 +544,7 @@ useEffect(() => {
 
       const missing = clips.find((c) => c.toyOk === false);
       if (missing) {
-        alert(
-          "Bazı hazır müziklerde 16 kHz önizleme dosyası yok. Lütfen düzeltin veya başka parça seçin."
-        );
+        alert("Bazı hazır müziklerde 16 kHz önizleme dosyası yok. Lütfen düzeltin veya başka parça seçin.");
         return;
       }
     }
@@ -540,7 +554,6 @@ useEffect(() => {
       return;
     }
 
-    // INTERNET: tek blok (senin iki defa yazdığın şeyleri birleştirdim)
     if (activeTab === "internet") {
       if (!internetVideoId) {
         alert("Link geçersizdir.");
@@ -548,20 +561,15 @@ useEffect(() => {
       }
 
       const hasUpload = formData.yukluDosyalar.length > 0;
-      const hasManualRange =
-        formData.ytStartSec !== "" && formData.ytEndSec !== "";
+      const hasManualRange = formData.ytStartSec !== "" && formData.ytEndSec !== "";
 
       if (!hasUpload && !hasManualRange) {
-        alert(
-          "YouTube seçimi için lütfen ses dosyasını yükleyiniz ya da süre aralığını belirtiniz."
-        );
+        alert("YouTube seçimi için lütfen ses dosyasını yükleyiniz ya da süre aralığını belirtiniz.");
         return;
       }
 
       if (ytDurationSec && ytDurationSec > 310 && !hasUpload && !hasManualRange) {
-        alert(
-          "Video 310 sn’den uzundur. Lütfen dosya yükleyiniz veya süre aralığı belirtiniz."
-        );
+        alert("Video 310 sn’den uzundur. Lütfen dosya yükleyiniz veya süre aralığı belirtiniz.");
         return;
       }
 
@@ -573,12 +581,10 @@ useEffect(() => {
           alert("Lütfen geçerli bir başlangıç ve bitiş süresi giriniz.");
           return;
         }
-
         if (end - start > 310) {
           alert("Seçilen süre 310 sn’den uzundur. Lütfen aşağıdan süre aralığı belirtiniz.");
           return;
         }
-
         if (ytDurationSec && end > ytDurationSec) {
           alert("Bitiş süresi video süresinden büyük olamaz.");
           return;
@@ -586,17 +592,13 @@ useEffect(() => {
       }
     }
 
-    // ---------------- VALIDASYON BİTTİ -> ARTIK SUBMIT MODUNA GEÇ ----------------
     setIsSubmitting(true);
     setSubmitMsg("Siparişiniz gönderiliyor…");
 
-    const selectedSong = SONGS.find((s) => s.id === formData.hazirMuzikId);
     const orderId = `${Date.now()}_${Math.random().toString(16).slice(2)}`;
 
-    // sadece upload tabı (senin mantığın bu)
-    const upload16kFromLocalFiles = async (orderId) => {
+    const upload16kFromLocalFiles = async (orderId_) => {
       const items = (formData.yukluDosyalar || []).filter((f) => f?.file);
-
       const out = [];
 
       for (const f of items) {
@@ -612,7 +614,7 @@ useEffect(() => {
         const wavBlob = await fileTo16kWavBlob(f.file, start, end, 16000);
 
         const safeName = `${Date.now()}_${f.id || "file"}.wav`;
-        const pathname = `orders/${orderId}/16k/${safeName}`;
+        const pathname = `orders/${orderId_}/16k/${safeName}`;
 
         const blob = await upload(pathname, wavBlob, {
           access: "public",
@@ -633,194 +635,165 @@ useEffect(() => {
     };
 
     const fetchBlobFromPublicUrl = async (url) => {
-  const r = await fetch(url, { cache: "no-store" });
-  if (!r.ok) throw new Error(`Preview indirilemedi: ${url}`);
-  return await r.blob();
-};
+      const r = await fetch(url, { cache: "no-store" });
+      if (!r.ok) throw new Error(`Preview indirilemedi: ${url}`);
+      return await r.blob();
+    };
 
-// MP3 -> AudioBuffer decode + start/end crop + 16k mono WAV blob
-const blobTo16kWavBlob = async (blob, trimStart, trimEnd, targetSampleRate = 16000) => {
-  const arrayBuffer = await blob.arrayBuffer();
-  const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-  const decoded = await audioCtx.decodeAudioData(arrayBuffer);
+    const blobTo16kWavBlob = async (blob, trimStart, trimEnd, targetSampleRate = 16000) => {
+      const arrayBuffer = await blob.arrayBuffer();
+      const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      const decoded = await audioCtx.decodeAudioData(arrayBuffer);
 
-  const safeStart = Math.max(0, Number(trimStart) || 0);
-  const safeEnd = Math.min(Number(trimEnd) || 0, decoded.duration || safeStart);
+      const safeStart = Math.max(0, Number(trimStart) || 0);
+      const safeEnd = Math.min(Number(trimEnd) || 0, decoded.duration || safeStart);
 
-  if (!isFinite(safeStart) || !isFinite(safeEnd) || safeEnd <= safeStart) {
-    audioCtx.close?.();
-    throw new Error("Geçersiz trim aralığı");
-  }
+      if (!isFinite(safeStart) || !isFinite(safeEnd) || safeEnd <= safeStart) {
+        audioCtx.close?.();
+        throw new Error("Geçersiz trim aralığı");
+      }
 
-  const startSample = Math.floor(safeStart * decoded.sampleRate);
-  const endSample = Math.floor(safeEnd * decoded.sampleRate);
-  const frameCount = Math.max(1, endSample - startSample);
+      const startSample = Math.floor(safeStart * decoded.sampleRate);
+      const endSample = Math.floor(safeEnd * decoded.sampleRate);
+      const frameCount = Math.max(1, endSample - startSample);
 
-  // mono mix
-  const mono = audioCtx.createBuffer(1, frameCount, decoded.sampleRate);
-  const out = mono.getChannelData(0);
+      const mono = audioCtx.createBuffer(1, frameCount, decoded.sampleRate);
+      const out = mono.getChannelData(0);
 
-  for (let ch = 0; ch < decoded.numberOfChannels; ch++) {
-    const data = decoded.getChannelData(ch);
-    for (let i = 0; i < frameCount; i++) {
-      out[i] += data[startSample + i] / decoded.numberOfChannels;
+      for (let ch = 0; ch < decoded.numberOfChannels; ch++) {
+        const data = decoded.getChannelData(ch);
+        for (let i = 0; i < frameCount; i++) {
+          out[i] += data[startSample + i] / decoded.numberOfChannels;
+        }
+      }
+
+      const offline = new OfflineAudioContext(
+        1,
+        Math.ceil((frameCount / decoded.sampleRate) * targetSampleRate),
+        targetSampleRate
+      );
+
+      const src = offline.createBufferSource();
+      src.buffer = mono;
+      src.connect(offline.destination);
+      src.start(0);
+
+      const rendered = await offline.startRendering();
+      audioCtx.close?.();
+
+      return audioBufferToWavBlob(rendered);
+    };
+
+    const upload16kFromHazirClips = async (orderId_) => {
+      const clips = formData.hazirClips || [];
+      const out = [];
+
+      for (const c of clips) {
+        const start = Number(c.start ?? 0);
+        const end = Number(c.end ?? 0);
+        if (!isFinite(start) || !isFinite(end) || end <= start) continue;
+
+        const toyUrl = c.toyUrl || `/previews16k/${c.songId}.mp3`;
+        const mp3Blob = await fetchBlobFromPublicUrl(toyUrl);
+        const wavBlob = await blobTo16kWavBlob(mp3Blob, start, end, 16000);
+
+        const safeName = `${Date.now()}_${c.clipId || c.songId || "hazir"}.wav`;
+        const pathname = `orders/${orderId_}/16k/${safeName}`;
+
+        const blob = await upload(pathname, wavBlob, {
+          access: "public",
+          handleUploadUrl: "/api/upload",
+          contentType: "audio/wav",
+        });
+
+        out.push({
+          source: "hazir",
+          title: c.title,
+          youtubeId: c.youtubeId,
+          trimStart: start,
+          trimEnd: end,
+          blobPath: blob.pathname,
+          blobUrl: blob.url,
+        });
+      }
+
+      return out;
+    };
+
+    try {
+      let uploaded16k = [];
+
+      if (activeTab === "yukle" && formData.yukluDosyalar.length > 0) {
+        setSubmitMsg("16 kHz ses dosyası hazırlanıyor…");
+        uploaded16k = await upload16kFromLocalFiles(orderId);
+        setSubmitMsg("Dosyalar yükleniyor…");
+      }
+
+      if (activeTab === "hazir" && (formData.hazirClips || []).length > 0) {
+        setSubmitMsg("16 kHz hazır müzik hazırlanıyor…");
+        uploaded16k = await upload16kFromHazirClips(orderId);
+        setSubmitMsg("Dosyalar yükleniyor…");
+      }
+
+      const ytStartSec = formData.ytStartSec !== "" ? Number(formData.ytStartSec) : null;
+      const ytEndSec = formData.ytEndSec !== "" ? Number(formData.ytEndSec) : null;
+
+      setSubmitMsg("Sipariş kaydediliyor…");
+      const resp = await fetch("/api/order", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          musteriAdi: formData.musteriAdi,
+          telefon: formData.telefon,
+          activeTab,
+          orderId,
+          uploaded16k,
+          hazirClips: (formData.hazirClips || []).map((c) => ({
+            title: c.title,
+            youtubeId: c.youtubeId,
+            start: c.start,
+            end: c.end,
+          })),
+          youtubeLink: formData.youtubeLink || "",
+          internetVideoId: internetVideoId || "",
+          ytDurationSec: Number(ytDurationSec) || 0,
+          ytStartSec,
+          ytEndSec,
+          yukluDosyaAdlari: (formData.yukluDosyalar || []).map((f) => f.name),
+        }),
+      });
+
+      const j = await resp.json();
+      if (!j.ok) {
+        alert("Sipariş oluşturulamadı lütfen daha sonra tekrar deneyiniz. " + (j.error || "unknown"));
+        return;
+      }
+
+      alert("Siparişiniz alındı! En kısa sürede sizinle iletişime geçeceğiz.");
+    } catch (e) {
+      alert("Sipariş oluşturulamadı lütfen daha sonra tekrar deneyiniz. " + (e?.message || e));
+      return;
+    } finally {
+      setIsSubmitting(false);
+      setSubmitMsg("");
     }
-  }
-
-  // resample
-  const offline = new OfflineAudioContext(
-    1,
-    Math.ceil((frameCount / decoded.sampleRate) * targetSampleRate),
-    targetSampleRate
-  );
-
-  const src = offline.createBufferSource();
-  src.buffer = mono;
-  src.connect(offline.destination);
-  src.start(0);
-
-  const rendered = await offline.startRendering();
-  audioCtx.close?.();
-
-  return audioBufferToWavBlob(rendered); // sende zaten var
-};
-
-const upload16kFromHazirClips = async (orderId) => {
-  const clips = formData.hazirClips || [];
-  const out = [];
-
-  for (const c of clips) {
-    const start = Number(c.start ?? 0);
-    const end = Number(c.end ?? 0);
-    if (!isFinite(start) || !isFinite(end) || end <= start) continue;
-
-    // Hazır’daki toyUrl zaten 16k mp3 ama biz seçilen aralığı WAV’a çevirip aynı sistemle upload ediyoruz
-    const toyUrl = c.toyUrl || `/previews16k/${c.songId}.mp3`;
-
-    const mp3Blob = await fetchBlobFromPublicUrl(toyUrl);
-    const wavBlob = await blobTo16kWavBlob(mp3Blob, start, end, 16000);
-
-    const safeName = `${Date.now()}_${c.clipId || c.songId || "hazir"}.wav`;
-    const pathname = `orders/${orderId}/16k/${safeName}`;
-
-    const blob = await upload(pathname, wavBlob, {
-      access: "public",
-      handleUploadUrl: "/api/upload",
-      contentType: "audio/wav",
-    });
-
-    out.push({
-      source: "hazir",
-      title: c.title,
-      youtubeId: c.youtubeId,
-      trimStart: start,
-      trimEnd: end,
-      blobPath: blob.pathname,
-      blobUrl: blob.url,
-    });
-  }
-
-  return out;
-};
-
-   try {
-  let uploaded16k = [];
-
-  // 1) 16k üret + upload (tab'a göre)
-  if (activeTab === "yukle" && formData.yukluDosyalar.length > 0) {
-    setSubmitMsg("16 kHz ses dosyası hazırlanıyor…");
-    uploaded16k = await upload16kFromLocalFiles(orderId);
-    setSubmitMsg("Dosyalar yükleniyor…");
-  }
-
-  if (activeTab === "hazir" && (formData.hazirClips || []).length > 0) {
-    setSubmitMsg("16 kHz hazır müzik hazırlanıyor…");
-    uploaded16k = await upload16kFromHazirClips(orderId);
-    setSubmitMsg("Dosyalar yükleniyor…");
-  }
-
-  console.log("UPLOADED_16K_FINAL", uploaded16k);
-
-  // 2) YouTube alanlarını hazırla (internet tab)
-  const ytStartSec =
-    formData.ytStartSec !== "" ? Number(formData.ytStartSec) : null;
-  const ytEndSec =
-    formData.ytEndSec !== "" ? Number(formData.ytEndSec) : null;
-
-  // Debug istersen:
-  console.log("SEND_YT_FIELDS", {
-    activeTab,
-    youtubeLink: formData.youtubeLink,
-    internetVideoId,
-    ytDurationSec,
-    ytStartSec,
-    ytEndSec,
-  });
-
-  // 3) Order'ı kaydet + Telegram'a gönder
-  setSubmitMsg("Sipariş kaydediliyor…");
-  const resp = await fetch("/api/order", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      musteriAdi: formData.musteriAdi,
-      telefon: formData.telefon,
-      activeTab,
-      orderId,
-      uploaded16k,
-
-      hazirClips: (formData.hazirClips || []).map((c) => ({
-        title: c.title,
-        youtubeId: c.youtubeId,
-        start: c.start,
-        end: c.end,
-      })),
-
-      youtubeLink: formData.youtubeLink || "",
-      internetVideoId: internetVideoId || "",
-
-      // ✅ YouTube süre/aralık bilgileri
-      ytDurationSec: Number(ytDurationSec) || 0,
-      ytStartSec,
-      ytEndSec,
-
-      yukluDosyaAdlari: (formData.yukluDosyalar || []).map((f) => f.name),
-    }),
-  });
-
-  const j = await resp.json();
-  if (!j.ok) {
-    alert(
-      "Sipariş oluşturulamadı lütfen daha sonra tekrar deneyiniz. " +
-        (j.error || "unknown")
-    );
-    return;
-  }
-
-  alert("Siparişiniz alındı! En kısa sürede sizinle iletişime geçeceğiz.");
-
-  console.log("Sipariş Detayları:", formData);
-  console.log("Seçilen Hazır Müzik:", selectedSong);
-  console.log("İnternet VideoId:", internetVideoId);
-} catch (e) {
-  alert(
-    "Sipariş oluşturulamadı lütfen daha sonra tekrar deneyiniz. " +
-      (e?.message || e)
-  );
-  return;
-} finally {
-  setIsSubmitting(false);
-  setSubmitMsg("");
-}};
+  };
 
   return (
     <>
+      {/* GLOBAL THEME VARS */}
+      <style jsx global>{THEME_VARS}</style>
+
+      {/* GLOBAL SPIN ANIM */}
+      <style>{`@keyframes spin{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}`}</style>
+
+      {/* LOADING OVERLAY */}
       {isSubmitting && (
         <div
           style={{
             position: "fixed",
             inset: 0,
-            background: "rgba(0,0,0,0.45)",
+            background: "rgba(184,52,58,0.55)",
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
@@ -837,17 +810,17 @@ const upload16kFromHazirClips = async (orderId) => {
               boxShadow: "0 10px 30px rgba(0,0,0,0.25)",
             }}
           >
-            <div style={{ fontSize: 18, fontWeight: 700, marginBottom: 8 }}>
+            <div style={{ fontSize: 18, fontWeight: 700, marginBottom: 8, color: "var(--ui-input-text)" }}>
               Lütfen bekleyin
             </div>
-            <div style={{ marginBottom: 12 }}>{submitMsg || "Gönderiliyor…"}</div>
+            <div style={{ marginBottom: 12, color: "var(--ui-input-text)" }}>{submitMsg || "Gönderiliyor…"}</div>
 
             <div
               style={{
                 width: 28,
                 height: 28,
-                border: "3px solid #ddd",
-                borderTop: "3px solid #333",
+                border: "3px solid rgba(0,0,0,0.12)",
+                borderTop: "3px solid var(--bg-primary)",
                 borderRadius: "50%",
                 margin: "0 auto",
                 animation: "spin 1s linear infinite",
@@ -857,21 +830,25 @@ const upload16kFromHazirClips = async (orderId) => {
         </div>
       )}
 
+      {/* NOTICE MODAL */}
       {showNotice && (
         <div className="fixed inset-0 z-50 flex items-center justify-center px-4">
-          <div className="absolute inset-0 bg-black/40" />
-          <div className="relative w-full max-w-xl bg-white rounded-2xl shadow-2xl border border-amber-200">
+          <div className="absolute inset-0" style={{ background: "rgba(0,0,0,0.45)" }} />
+          <div className="relative w-full max-w-xl rounded-2xl shadow-2xl border bg-white" style={{ borderColor: "rgba(0,0,0,0.08)" }}>
             <div className="p-6">
-              <h3 className="text-lg font-bold text-stone-900 mb-3">
+              <h3 className="text-lg font-bold mb-3" style={{ color: "var(--ui-input-text)" }}>
                 Önemli Bilgilendirme
               </h3>
-              <p className="text-sm text-stone-700 leading-relaxed whitespace-pre-line">
+              <p className="text-sm leading-relaxed whitespace-pre-line" style={{ color: "rgba(58,31,31,0.85)" }}>
                 {NOTICE_TEXT}
               </p>
               <button
                 type="button"
                 onClick={() => setShowNotice(false)}
-                className="mt-5 w-full bg-gradient-to-r from-amber-700 to-yellow-600 text-white py-3 rounded-xl font-semibold hover:opacity-90"
+                className="mt-5 w-full py-3 rounded-xl font-semibold hover:opacity-95"
+                style={S.btnPrimary}
+                onMouseEnter={(e) => (e.currentTarget.style.background = "var(--ui-btn-hover)")}
+                onMouseLeave={(e) => (e.currentTarget.style.background = "var(--ui-btn-bg)")}
               >
                 Okudum, Devam Et
               </button>
@@ -880,11 +857,18 @@ const upload16kFromHazirClips = async (orderId) => {
         </div>
       )}
 
-      <div className="min-h-screen bg-gradient-to-br from-amber-50 via-yellow-50 to-stone-100 py-10 px-4">
+      {/* PAGE */}
+      <div className="min-h-screen py-10 px-4" style={S.pageBg}>
         <div className="max-w-2xl mx-auto">
           {/* HEADER */}
-          <div className="bg-white rounded-3xl shadow-xl p-8 mb-8 text-center">
-            <div className="w-32 h-32 mx-auto mb-4 rounded-2xl bg-gradient-to-br from-amber-200 to-yellow-200 shadow-inner border border-amber-200 overflow-hidden flex items-center justify-center">
+          <div className="rounded-3xl shadow-xl p-8 mb-8 text-center" style={S.card}>
+            <div
+              className="w-32 h-32 mx-auto mb-4 rounded-2xl shadow-inner border overflow-hidden flex items-center justify-center"
+              style={{
+                background: "rgba(201,122,91,0.18)",
+                borderColor: "rgba(201,122,91,0.22)",
+              }}
+            >
               <img
                 src="/memory-drop-logo.png"
                 alt="Memory Drop Studio"
@@ -896,20 +880,18 @@ const upload16kFromHazirClips = async (orderId) => {
               />
             </div>
 
-            <h1 className="text-3xl font-bold text-stone-800 mb-2">
+            <h1 className="text-3xl font-bold mb-2" style={S.titleOnWhite}>
               Memory Drop Studio Ön Sipariş Ekranı
             </h1>
-            <p className="text-stone-600">
-              Sevdikleriniz için özel, sesli bir oyuncak oluşturun!
-            </p>
+            <p style={{ color: "rgba(58,31,31,0.75)" }}>Sevdikleriniz için özel, sesli bir oyuncak oluşturun!</p>
           </div>
 
           {/* FORM */}
-          <div className="bg-white rounded-3xl shadow-xl p-8">
+          <div className="rounded-3xl shadow-xl p-8" style={S.card}>
             {/* İLETİŞİM */}
             <div className="mb-8">
-              <h2 className="text-xl font-semibold text-stone-800 mb-4 flex items-center">
-                <User className="w-5 h-5 mr-2 text-amber-700" />
+              <h2 className="text-xl font-semibold mb-4 flex items-center" style={S.titleOnWhite}>
+                <User className="w-5 h-5 mr-2" style={{ color: "var(--accent-dark)" }} />
                 İletişim Bilgileri
               </h2>
 
@@ -931,16 +913,22 @@ const upload16kFromHazirClips = async (orderId) => {
 
             {/* MÜZİK */}
             <div className="mb-6">
-              <h2 className="text-xl font-semibold text-stone-800 flex items-center mb-4">
-                <Music className="w-5 h-5 mr-2 text-amber-700" />
+              <h2 className="text-xl font-semibold flex items-center mb-4" style={S.titleOnWhite}>
+                <Music className="w-5 h-5 mr-2" style={{ color: "var(--accent-dark)" }} />
                 Müzik Seçimi *
               </h2>
 
-              <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 mb-4 flex items-start gap-3">
-                <AlertCircle className="w-5 h-5 text-amber-700 flex-shrink-0 mt-0.5" />
-                <div className="text-sm text-amber-900">
-                  <strong>Önemli:</strong> Seçmiş olduğunuz müziklerin toplam süresi
-                  süresi maksimum 310 saniye (5dk 10sn) olmalıdır.
+              <div
+                className="rounded-xl p-4 mb-4 flex items-start gap-3 border"
+                style={{
+                  background: "rgba(201,122,91,0.14)",
+                  borderColor: "rgba(201,122,91,0.22)",
+                }}
+              >
+                <AlertCircle className="w-5 h-5 flex-shrink-0 mt-0.5" style={{ color: "var(--accent-dark)" }} />
+                <div className="text-sm" style={{ color: "rgba(58,31,31,0.86)" }}>
+                  <strong>Önemli:</strong> Seçmiş olduğunuz müziklerin toplam süresi maksimum 310 saniye (5dk 10sn)
+                  olmalıdır.
                 </div>
               </div>
 
@@ -956,28 +944,34 @@ const upload16kFromHazirClips = async (orderId) => {
                 </TabButton>
               </div>
 
-              <div className="bg-amber-50/30 rounded-xl p-6 border border-amber-100">
+              <div
+                className="rounded-xl p-6 border"
+                style={{ background: "rgba(201,122,91,0.08)", borderColor: "rgba(201,122,91,0.18)" }}
+              >
                 {activeTab === "hazir" && (
-                  <div className="mb-3 text-xs text-stone-700">
-                    Toplam: <b>{fmtSec2(totalSec)} sn</b> • Kalan:{" "}
-                    <b>{fmtSec2(MAX_TOTAL_SEC - totalSec)} sn</b>
+                  <div className="mb-3 text-xs" style={{ color: "rgba(58,31,31,0.70)" }}>
+                    Toplam: <b>{fmtSec2(totalSec)} sn</b> • Kalan: <b>{fmtSec2(MAX_TOTAL_SEC - totalSec)} sn</b>
                   </div>
                 )}
 
-                {activeTab === "hazir" && (
-                  <HazirMuzikMulti formData={formData} setFormData={setFormData} />
-                )}
+                {activeTab === "hazir" && <HazirMuzikMulti formData={formData} setFormData={setFormData} />}
 
                 {activeTab === "yukle" && (
                   <div>
-                    <p className="text-sm text-stone-700 mb-4">
+                    <p className="text-sm mb-4" style={{ color: "rgba(58,31,31,0.80)" }}>
                       Dosya yükle (MP3 / WAV / M4A vb.)
                     </p>
 
-                    <div className="border-2 border-dashed border-amber-200 rounded-xl p-8 text-center hover:border-amber-500 transition mb-4 bg-white">
-                      <Upload className="w-12 h-12 mx-auto text-amber-700 mb-3" />
+                    <div
+                      className="border-2 border-dashed rounded-xl p-8 text-center transition mb-4"
+                      style={{
+                        borderColor: "rgba(201,122,91,0.35)",
+                        background: "white",
+                      }}
+                    >
+                      <Upload className="w-12 h-12 mx-auto mb-3" style={{ color: "var(--accent-dark)" }} />
                       <label className="cursor-pointer">
-                        <span className="text-amber-800 font-medium hover:text-amber-900">
+                        <span className="font-medium" style={{ color: "var(--accent-dark)" }}>
                           Dosya Seç (Birden fazla seçilebilir)
                         </span>
 
@@ -997,16 +991,11 @@ const upload16kFromHazirClips = async (orderId) => {
 
                     {formData.yukluDosyalar.length > 0 && (
                       <div className="space-y-4">
-                        <p className="text-sm font-medium text-stone-700">
+                        <p className="text-sm font-medium" style={{ color: "rgba(58,31,31,0.78)" }}>
                           Yüklenen Dosyalar:
                         </p>
                         {formData.yukluDosyalar.map((dosya) => (
-                          <DosyaTrimmer
-                            key={dosya.id}
-                            dosya={dosya}
-                            onRemove={removeDosya}
-                            onUpdate={updateDosya}
-                          />
+                          <DosyaTrimmer key={dosya.id} dosya={dosya} onRemove={removeDosya} onUpdate={updateDosya} />
                         ))}
                       </div>
                     )}
@@ -1023,13 +1012,12 @@ const upload16kFromHazirClips = async (orderId) => {
                     />
 
                     {internetVideoId && (
-                      <div className="mt-3 text-xs text-stone-700">
+                      <div className="mt-3 text-xs" style={{ color: "rgba(58,31,31,0.72)" }}>
                         {ytDurationSec ? (
                           <>
                             Video süresi:{" "}
                             <b>
-                              {Math.floor(ytDurationSec / 60)}:
-                              {String(Math.floor(ytDurationSec % 60)).padStart(2, "0")}
+                              {Math.floor(ytDurationSec / 60)}:{String(Math.floor(ytDurationSec % 60)).padStart(2, "0")}
                             </b>
                           </>
                         ) : (
@@ -1039,27 +1027,38 @@ const upload16kFromHazirClips = async (orderId) => {
                     )}
 
                     {internetVideoId && ytDurationSec && ytDurationSec > 310 && (
-                      <div className="mt-3 bg-red-50 border border-red-200 rounded-lg p-3 text-xs text-red-700">
-                        Bu video <b>310 sn’den uzundur</b>. Lütfen ses dosyasını
-                        yükleyiniz ya da aşağıdan süre aralığı belirtiniz.
+                      <div
+                        className="mt-3 rounded-lg p-3 text-xs border"
+                        style={{
+                          background: "var(--danger-bg)",
+                          borderColor: "var(--danger-border)",
+                          color: "var(--danger)",
+                        }}
+                      >
+                        Bu video <b>310 sn’den uzundur</b>. Lütfen ses dosyasını yükleyiniz ya da aşağıdan süre aralığı
+                        belirtiniz.
                       </div>
                     )}
 
-                    <div className="mt-4 bg-amber-50 border border-amber-200 rounded-xl p-4">
-                      <div className="text-sm font-semibold text-stone-800 mb-2">
+                    <div
+                      className="mt-4 rounded-xl p-4 border"
+                      style={{
+                        background: "rgba(201,122,91,0.14)",
+                        borderColor: "rgba(201,122,91,0.22)",
+                      }}
+                    >
+                      <div className="text-sm font-semibold mb-2" style={{ color: "rgba(58,31,31,0.90)" }}>
                         Oyuncakta Duyulacak (16 kHz)
                       </div>
 
-                      <p className="text-xs text-stone-600 mb-3">
-                        YouTube’dan ses dönüştürülmez. Oyuncakta duyulacak 16 kHz
-                        önizleme için lütfen aynı müziğin dosyasını yükleyin (MP3 /
-                        WAV / M4A vb.).
+                      <p className="text-xs mb-3" style={{ color: "rgba(58,31,31,0.72)" }}>
+                        YouTube’dan ses dönüştürülmez. Oyuncakta duyulacak 16 kHz önizleme için lütfen aynı müziğin
+                        dosyasını yükleyin (MP3 / WAV / M4A vb.).
                       </p>
 
-                      <label className="inline-flex items-center gap-2 cursor-pointer text-amber-800 font-medium">
+                      <label className="inline-flex items-center gap-2 cursor-pointer font-medium" style={{ color: "var(--accent-dark)" }}>
                         <Upload className="w-4 h-4" />
                         Dosya Yükle
-
                         <input
                           ref={fileInputRef2}
                           type="file"
@@ -1075,26 +1074,17 @@ const upload16kFromHazirClips = async (orderId) => {
 
                     {formData.yukluDosyalar.length > 0 && (
                       <div className="mt-4 space-y-4">
-                        <div className="text-sm font-medium text-stone-700">
+                        <div className="text-sm font-medium" style={{ color: "rgba(58,31,31,0.78)" }}>
                           Yüklediğin dosya(lar) – burada kırpabilirsin:
                         </div>
 
                         {formData.yukluDosyalar.map((dosya) => (
-                          <DosyaTrimmer
-                            key={dosya.id}
-                            dosya={dosya}
-                            onRemove={removeDosya}
-                            onUpdate={updateDosya}
-                          />
+                          <DosyaTrimmer key={dosya.id} dosya={dosya} onRemove={removeDosya} onUpdate={updateDosya} />
                         ))}
                       </div>
                     )}
 
-                    <YouTubeRangePicker
-                      ytDurationSec={ytDurationSec}
-                      formData={formData}
-                      setFormData={setFormData}
-                    />
+                    <YouTubeRangePicker ytDurationSec={ytDurationSec} formData={formData} setFormData={setFormData} />
                   </>
                 )}
               </div>
@@ -1104,42 +1094,52 @@ const upload16kFromHazirClips = async (orderId) => {
               type="button"
               disabled={submitDisabled || isSubmitting}
               onClick={handleSubmit}
-              className={`w-full py-4 rounded-xl font-semibold text-lg transition shadow-lg
-                ${
-                  submitDisabled || isSubmitting
-                    ? "bg-stone-300 text-stone-500 cursor-not-allowed"
-                    : "bg-gradient-to-r from-amber-700 to-yellow-600 text-white hover:from-amber-800 hover:to-yellow-700"
-                }`}
+              className="w-full py-4 rounded-xl font-semibold text-lg transition shadow-lg"
+              style={
+                submitDisabled || isSubmitting
+                  ? { background: "rgba(0,0,0,0.12)", color: "rgba(0,0,0,0.45)", cursor: "not-allowed" }
+                  : S.btnPrimary
+              }
+              onMouseEnter={(e) => {
+                if (submitDisabled || isSubmitting) return;
+                e.currentTarget.style.background = "var(--ui-btn-hover)";
+              }}
+              onMouseLeave={(e) => {
+                if (submitDisabled || isSubmitting) return;
+                e.currentTarget.style.background = "var(--ui-btn-bg)";
+              }}
             >
               {isSubmitting ? "Gönderiliyor…" : "Siparişi Tamamla"}
             </button>
 
-            <p className="text-xs text-stone-500 text-center mt-4">
+            <p className="text-xs text-center mt-4" style={{ color: "rgba(58,31,31,0.55)" }}>
               Siparişiniz alındıktan sonra sizinle iletişime geçeceğiz
             </p>
           </div>
         </div>
       </div>
-
-      <style>{`
-        @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
-      `}</style>
     </>
   );
 }
 
+/* =========================================================
+   BASIC UI
+   ========================================================= */
 function Input({ label, value, onChange, placeholder, type = "text" }) {
   return (
     <div>
-      <label className="block text-sm font-medium text-stone-700 mb-2">
+      <label className="block text-sm font-medium mb-2" style={{ color: "rgba(58,31,31,0.80)" }}>
         {label}
       </label>
       <input
         type={type}
         value={value ?? ""}
         onChange={(e) => onChange?.(e.target.value)}
-        className="w-full px-4 py-3 border-2 border-amber-200 rounded-xl focus:border-amber-600 focus:outline-none transition bg-white"
+        className="w-full px-4 py-3 rounded-xl outline-none transition border-2"
+        style={S.input}
         placeholder={placeholder}
+        onFocus={(e) => (e.currentTarget.style.borderColor = "var(--accent-dark)")}
+        onBlur={(e) => (e.currentTarget.style.borderColor = "var(--ui-input-border)")}
       />
     </div>
   );
@@ -1150,23 +1150,33 @@ function TabButton({ active, onClick, children, icon }) {
     <button
       type="button"
       onClick={onClick}
-      className={`flex-1 min-w-[140px] py-3 px-4 rounded-xl font-medium transition flex items-center justify-center gap-2 ${
+      className="flex-1 min-w-[140px] py-3 px-4 rounded-xl font-medium transition flex items-center justify-center gap-2 border"
+      style={
         active
-          ? 'bg-gradient-to-r from-amber-700 to-yellow-600 text-white shadow-lg'
-          : 'bg-amber-50 text-stone-700 hover:bg-amber-100'
-      }`}
+          ? { background: "var(--ui-btn-bg)", color: "white", borderColor: "rgba(0,0,0,0.06)", boxShadow: "0 10px 20px rgba(0,0,0,0.08)" }
+          : { background: "rgba(201,122,91,0.10)", color: "rgba(58,31,31,0.78)", borderColor: "rgba(201,122,91,0.20)" }
+      }
+      onMouseEnter={(e) => {
+        if (active) return;
+        e.currentTarget.style.background = "rgba(201,122,91,0.16)";
+      }}
+      onMouseLeave={(e) => {
+        if (active) return;
+        e.currentTarget.style.background = "rgba(201,122,91,0.10)";
+      }}
     >
       {icon}
       {children}
     </button>
   );
 }
+
 /* =========================================================
-   UI HELPERS
+   HazirMuzikMulti (theme colors applied)
    ========================================================= */
 function HazirMuzikMulti({ formData, setFormData }) {
-  const [query, setQuery] = useState('');
-  const [selectedSongId, setSelectedSongId] = useState('');
+  const [query, setQuery] = useState("");
+  const [selectedSongId, setSelectedSongId] = useState("");
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -1188,11 +1198,10 @@ function HazirMuzikMulti({ formData, setFormData }) {
   const remaining = Math.max(0, MAX_TOTAL_SEC - totalSec);
   const selected = SONGS.find((s) => s.id === selectedSongId);
 
-  // mp3 duration oku
   const readDuration = (url) =>
     new Promise((resolve) => {
       const a = new Audio();
-      a.preload = 'metadata';
+      a.preload = "metadata";
       a.src = url;
       a.onloadedmetadata = () => resolve(a.duration || 0);
       a.onerror = () => resolve(0);
@@ -1201,7 +1210,7 @@ function HazirMuzikMulti({ formData, setFormData }) {
 
   const headExists = async (url) => {
     try {
-      const r = await fetch(url, { method: 'HEAD', cache: 'no-store' });
+      const r = await fetch(url, { method: "HEAD", cache: "no-store" });
       return !!r.ok;
     } catch {
       return false;
@@ -1211,22 +1220,16 @@ function HazirMuzikMulti({ formData, setFormData }) {
   const addClip = async () => {
     if (!selected) return;
 
-    // ✅ Eski mantık: kalan yoksa EKLEME
     if (remaining < 0.5) {
-      alert('Toplam süre 310 sn sınırında. Yeni parça eklemek için önce bir parçayı kısaltın veya silin.');
+      alert("Toplam süre 310 sn sınırında. Yeni parça eklemek için önce bir parçayı kısaltın veya silin.");
       return;
     }
 
     const toyUrl = `/previews16k/${selected.id}.mp3`;
-
-    // preview var mı?
     const ok = await headExists(toyUrl);
+    const dur = await readDuration(toyUrl);
 
-    // duration oku
-    const dur = await readDuration(toyUrl); // 0 olabilir
-
-    // ✅ Eski mantık: yeni clip uzunluğu KALAN kadar (ve şarkı süresi varsa onu da aşmasın)
-    const maxLenForNew = remaining; // burada 1sn gibi “zorlama” YOK
+    const maxLenForNew = remaining;
     const endByRemaining = maxLenForNew;
     const endByDur = dur > 0 ? dur : endByRemaining;
     const end = Math.min(endByDur, endByRemaining);
@@ -1239,15 +1242,14 @@ function HazirMuzikMulti({ formData, setFormData }) {
       toyUrl,
       songDur: dur || 0,
       start: 0,
-      end: Math.max(0.5, end), // min 0.5 sn
+      end: Math.max(0.5, end),
       toyOk: ok,
       tags: selected.tags || [],
     };
 
-    // ✅ ekstra güvenlik: ekleme total’i aşacaksa blokla
     const addLen = Math.max(0, clip.end - clip.start);
     if (totalSec + addLen > MAX_TOTAL_SEC + 0.01) {
-      alert('Bu ekleme toplam süreyi 310 sn üstüne çıkarır. Önce bir parçayı kısaltın.');
+      alert("Bu ekleme toplam süreyi 310 sn üstüne çıkarır. Önce bir parçayı kısaltın.");
       return;
     }
 
@@ -1264,7 +1266,6 @@ function HazirMuzikMulti({ formData, setFormData }) {
     }));
   };
 
-  // ✅ Eski mantık: kırpma yapınca sadece O CLIP clamp’lensin, toplam 310’u aşmasın
   const updateClip = (clipId, updates) => {
     setFormData((p) => {
       const clips = p.hazirClips || [];
@@ -1281,9 +1282,7 @@ function HazirMuzikMulti({ formData, setFormData }) {
       const maxLen = Math.max(0.5, MAX_TOTAL_SEC - othersTotal);
       const minEnd = (Number(next.start) || 0) + 0.5;
 
-      const hardMaxEnd =
-        next.songDur && next.songDur > 0 ? next.songDur : Infinity;
-
+      const hardMaxEnd = next.songDur && next.songDur > 0 ? next.songDur : Infinity;
       const allowedEnd = Math.min((Number(next.start) || 0) + maxLen, hardMaxEnd);
 
       if ((Number(next.end) || 0) > allowedEnd) next.end = allowedEnd;
@@ -1291,33 +1290,39 @@ function HazirMuzikMulti({ formData, setFormData }) {
 
       const newClips = clips.slice();
       newClips[idx] = next;
-
       return { ...p, hazirClips: newClips };
     });
   };
 
   return (
     <div>
-      {/* İstersen bunu kaldır (parent zaten gösteriyor) */}
-      <div className="mb-3 text-xs text-stone-700">
+      <div className="mb-3 text-xs" style={{ color: "rgba(58,31,31,0.70)" }}>
         Toplam: <b>{Math.round(totalSec)} sn</b> • Kalan: <b>{Math.max(0, Math.round(MAX_TOTAL_SEC - totalSec))} sn</b>
       </div>
 
-      <p className="text-sm text-stone-700 mb-3">Hazır müzik ekle (çoklu seçim):</p>
+      <p className="text-sm mb-3" style={{ color: "rgba(58,31,31,0.80)" }}>
+        Hazır müzik ekle (çoklu seçim):
+      </p>
 
       <input
         type="text"
         value={query}
         onChange={(e) => setQuery(e.target.value)}
-        className="w-full px-4 py-3 border-2 border-amber-200 rounded-xl focus:border-amber-600 focus:outline-none transition mb-3 bg-white"
+        className="w-full px-4 py-3 rounded-xl outline-none transition border-2 mb-3"
+        style={S.input}
         placeholder="Ara: Şarkı İsmi / Tür / Dil"
+        onFocus={(e) => (e.currentTarget.style.borderColor = "var(--accent-dark)")}
+        onBlur={(e) => (e.currentTarget.style.borderColor = "var(--ui-input-border)")}
       />
 
       <div className="flex gap-2">
         <select
           value={selectedSongId}
           onChange={(e) => setSelectedSongId(e.target.value)}
-          className="flex-1 px-4 py-3 border-2 border-amber-200 rounded-xl focus:border-amber-600 focus:outline-none transition bg-white"
+          className="flex-1 px-4 py-3 rounded-xl outline-none transition border-2"
+          style={S.input}
+          onFocus={(e) => (e.currentTarget.style.borderColor = "var(--accent-dark)")}
+          onBlur={(e) => (e.currentTarget.style.borderColor = "var(--ui-input-border)")}
         >
           <option value="">— Müzik seç —</option>
           {filtered.map((s) => (
@@ -1331,9 +1336,20 @@ function HazirMuzikMulti({ formData, setFormData }) {
           type="button"
           onClick={addClip}
           disabled={!selectedSongId}
-          className={`px-4 rounded-xl font-semibold ${
-            selectedSongId ? 'bg-amber-700 text-white' : 'bg-stone-300 text-stone-500'
-          }`}
+          className="px-4 rounded-xl font-semibold transition"
+          style={
+            selectedSongId
+              ? { background: "var(--ui-btn-bg)", color: "white" }
+              : { background: "rgba(0,0,0,0.10)", color: "rgba(0,0,0,0.45)", cursor: "not-allowed" }
+          }
+          onMouseEnter={(e) => {
+            if (!selectedSongId) return;
+            e.currentTarget.style.background = "var(--ui-btn-hover)";
+          }}
+          onMouseLeave={(e) => {
+            if (!selectedSongId) return;
+            e.currentTarget.style.background = "var(--ui-btn-bg)";
+          }}
         >
           Ekle
         </button>
@@ -1341,14 +1357,11 @@ function HazirMuzikMulti({ formData, setFormData }) {
 
       {(formData.hazirClips || []).length > 0 && (
         <div className="mt-5 space-y-4">
-          <div className="text-sm font-semibold text-stone-800">Seçilen Parçalar (kırpılabilir):</div>
+          <div className="text-sm font-semibold" style={{ color: "rgba(58,31,31,0.88)" }}>
+            Seçilen Parçalar (kırpılabilir):
+          </div>
           {(formData.hazirClips || []).map((c) => (
-            <HazirClipTrimmer
-              key={c.clipId}
-              clip={c}
-              onRemove={() => removeClip(c.clipId)}
-              onUpdate={(u) => updateClip(c.clipId, u)}
-            />
+            <HazirClipTrimmer key={c.clipId} clip={c} onRemove={() => removeClip(c.clipId)} onUpdate={(u) => updateClip(c.clipId, u)} />
           ))}
         </div>
       )}
@@ -1356,15 +1369,17 @@ function HazirMuzikMulti({ formData, setFormData }) {
   );
 }
 
-
+/* =========================================================
+   HazirClipTrimmer (theme sliders)
+   ========================================================= */
 function HazirClipTrimmer({ clip, onRemove, onUpdate }) {
   const audioRef = useRef(null);
   const [isPlaying, setIsPlaying] = useState(false);
   const [activeThumb, setActiveThumb] = useState(null);
 
-  const MIN_GAP_LOCAL = 0.05;     // DosyaTrimmer ile aynı mantık
+  const MIN_GAP_LOCAL = 0.05;
   const STEP_NORMAL = 0.05;
-  const STEP_FINE_LOCAL = typeof STEP_FINE !== 'undefined' ? STEP_FINE : 0.005;
+  const STEP_FINE_LOCAL = typeof STEP_FINE !== "undefined" ? STEP_FINE : 0.005;
 
   const duration = Number(clip.songDur) || 0;
   const start = Number(clip.start) || 0;
@@ -1373,10 +1388,9 @@ function HazirClipTrimmer({ clip, onRemove, onUpdate }) {
   const formatTime = (s) => {
     const m = Math.floor(s / 60);
     const sec = Math.floor(s % 60);
-    return `${m}:${String(sec).padStart(2, '0')}`;
+    return `${m}:${String(sec).padStart(2, "0")}`;
   };
 
-  // Metadata: duration'ı clip'e yaz
   useEffect(() => {
     const a = audioRef.current;
     if (!a) return;
@@ -1385,35 +1399,28 @@ function HazirClipTrimmer({ clip, onRemove, onUpdate }) {
       const dur = a.duration || 0;
       if (!dur || !Number.isFinite(dur)) return;
 
-      // start/end'i duration'a göre güvenli hale getir
       const safeStart = Math.max(0, Math.min(start, Math.max(0, dur - 0.5)));
       const safeEnd = Math.max(safeStart + 0.5, Math.min(end || dur, dur));
 
       if (!clip.songDur || Math.abs(Number(clip.songDur) - dur) > 0.01) {
         onUpdate({ songDur: dur, start: safeStart, end: safeEnd });
       } else {
-        // duration aynı olsa bile taşma varsa düzelt
-        if (safeStart !== start || safeEnd !== end) {
-          onUpdate({ start: safeStart, end: safeEnd });
-        }
+        if (safeStart !== start || safeEnd !== end) onUpdate({ start: safeStart, end: safeEnd });
       }
     };
 
-    a.addEventListener('loadedmetadata', onMeta);
-    return () => a.removeEventListener('loadedmetadata', onMeta);
+    a.addEventListener("loadedmetadata", onMeta);
+    return () => a.removeEventListener("loadedmetadata", onMeta);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [clip.clipId, clip.id, clip.toyUrl]); // sende clipId var, bazen id oluyor; ikisini de koydum
+  }, [clip.clipId, clip.id, clip.toyUrl]);
 
-  // Play: sadece trim aralığında çalsın
   useEffect(() => {
     const a = audioRef.current;
     if (!a) return;
 
     const onTime = () => {
       if (!isPlaying) return;
-
       if (a.currentTime < start) a.currentTime = start;
-
       if (a.currentTime >= end) {
         a.pause();
         a.currentTime = start;
@@ -1423,14 +1430,16 @@ function HazirClipTrimmer({ clip, onRemove, onUpdate }) {
 
     const onEnded = () => {
       setIsPlaying(false);
-      try { a.currentTime = start; } catch {}
+      try {
+        a.currentTime = start;
+      } catch {}
     };
 
-    a.addEventListener('timeupdate', onTime);
-    a.addEventListener('ended', onEnded);
+    a.addEventListener("timeupdate", onTime);
+    a.addEventListener("ended", onEnded);
     return () => {
-      a.removeEventListener('timeupdate', onTime);
-      a.removeEventListener('ended', onEnded);
+      a.removeEventListener("timeupdate", onTime);
+      a.removeEventListener("ended", onEnded);
     };
   }, [isPlaying, start, end]);
 
@@ -1451,7 +1460,7 @@ function HazirClipTrimmer({ clip, onRemove, onUpdate }) {
     } catch (e) {
       console.error(e);
       setIsPlaying(false);
-      alert('Tarayıcı ses çalmayı engelledi. Play’e tekrar bas.');
+      alert("Tarayıcı ses çalmayı engelledi. Play’e tekrar bas.");
     }
   };
 
@@ -1466,9 +1475,7 @@ function HazirClipTrimmer({ clip, onRemove, onUpdate }) {
     const nextStart = Math.max(0, Math.min(value, end - MIN_GAP_LOCAL));
     onUpdate({ start: nextStart });
 
-    if (audioRef.current && isPlaying) {
-      audioRef.current.currentTime = nextStart;
-    }
+    if (audioRef.current && isPlaying) audioRef.current.currentTime = nextStart;
   };
 
   const handleEndChange = (e) => {
@@ -1476,10 +1483,7 @@ function HazirClipTrimmer({ clip, onRemove, onUpdate }) {
     const raw = parseFloat(e.target.value);
     const value = snap(raw, step);
 
-    const nextEnd = Math.min(
-      duration,
-      Math.max(value, start + MIN_GAP_LOCAL)
-    );
+    const nextEnd = Math.min(duration, Math.max(value, start + MIN_GAP_LOCAL));
     onUpdate({ end: nextEnd });
   };
 
@@ -1488,7 +1492,7 @@ function HazirClipTrimmer({ clip, onRemove, onUpdate }) {
     const step = e.shiftKey ? STEP_FINE_LOCAL : STEP_NORMAL;
     const dir = e.deltaY < 0 ? step : -step;
 
-    if (type === 'start') {
+    if (type === "start") {
       const nextStart = Math.max(0, Math.min(start + dir, end - MIN_GAP_LOCAL));
       onUpdate({ start: nextStart });
       if (audioRef.current && isPlaying) audioRef.current.currentTime = nextStart;
@@ -1499,13 +1503,11 @@ function HazirClipTrimmer({ clip, onRemove, onUpdate }) {
   };
 
   const selectedDuration = Math.max(0, end - start);
-
   const startPct = duration ? (start / duration) * 100 : 0;
   const endPct = duration ? (end / duration) * 100 : 0;
 
   return (
-    <div className="bg-white border border-amber-200 rounded-xl p-4">
-      {/* DosyaTrimmer'daki gibi CSS'yi inline veriyorum ki "nokta gibi" olmasın */}
+    <div className="bg-white border rounded-xl p-4" style={{ borderColor: "rgba(0,0,0,0.08)" }}>
       <style>{`
         .hazirTrimRange{
           -webkit-appearance:none;
@@ -1530,112 +1532,102 @@ function HazirClipTrimmer({ clip, onRemove, onUpdate }) {
           height:18px;
           border-radius:9999px;
           background:white;
-          border:2px solid #b45309;
+          border:2px solid var(--accent-dark);
           box-shadow:0 1px 3px rgba(0,0,0,0.25);
           pointer-events:auto;
           cursor:grab;
         }
         .hazirTrimRange.end::-webkit-slider-thumb{
-          border-color:#92400e;
+          border-color:var(--accent-dark);
         }
         .hazirTrimRange::-moz-range-track{ background:transparent; border:none; }
         .hazirTrimRange::-moz-range-thumb{
           width:18px;height:18px;border-radius:9999px;
-          background:white;border:2px solid #b45309;
+          background:white;border:2px solid var(--accent-dark);
           box-shadow:0 1px 3px rgba(0,0,0,0.25);
           pointer-events:auto;cursor:grab;
         }
-        .hazirTrimRange.end::-moz-range-thumb{ border-color:#92400e; }
+        .hazirTrimRange.end::-moz-range-thumb{ border-color:var(--accent-dark); }
       `}</style>
 
-      {/* ÜST BAR */}
       <div className="flex items-center justify-between gap-3">
-        <div className="text-sm font-semibold text-stone-800 truncate">
+        <div className="text-sm font-semibold truncate" style={{ color: "rgba(58,31,31,0.90)" }}>
           {clip.title}
         </div>
-<div className="flex items-center gap-2">
-  <button
-    type="button"
-    onClick={togglePlay}
-    className="px-3 py-2 rounded-lg bg-amber-100 hover:bg-amber-200 text-amber-900 text-sm"
-    title={isPlaying ? 'Durdur' : 'Dinle'}
-  >
-    {isPlaying ? 'Dur' : 'Dinle'}
-  </button>
 
-  <button
-    type="button"
-    onClick={onRemove}
-    className="px-3 py-2 rounded-lg bg-red-100 hover:bg-red-200 text-red-700 text-sm"
-    title="Sil"
-  >
-    Sil
-  </button>
-</div>
-        <button
-          type="button"
-          onClick={() => {
-            try { audioRef.current?.pause?.(); } catch {}
-            setIsPlaying(false);
-            onRemove?.();
-          }}
-          className="p-2 rounded-full bg-red-100 hover:bg-red-200 transition flex-shrink-0"
-          title="Sil"
-        >
-          <X className="w-4 h-4 text-red-600" />
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={togglePlay}
+            className="px-3 py-2 rounded-lg text-sm transition"
+            style={{ background: "rgba(201,122,91,0.16)", color: "rgba(58,31,31,0.90)" }}
+            onMouseEnter={(e) => (e.currentTarget.style.background = "rgba(201,122,91,0.22)")}
+            onMouseLeave={(e) => (e.currentTarget.style.background = "rgba(201,122,91,0.16)")}
+            title={isPlaying ? "Durdur" : "Dinle"}
+          >
+            {isPlaying ? "Dur" : "Dinle"}
+          </button>
+
+          <button
+            type="button"
+            onClick={() => {
+              try {
+                audioRef.current?.pause?.();
+              } catch {}
+              setIsPlaying(false);
+              onRemove?.();
+            }}
+            className="p-2 rounded-full transition"
+            style={{ background: "var(--danger-bg)" }}
+            title="Sil"
+          >
+            <X className="w-4 h-4" style={{ color: "var(--danger)" }} />
+          </button>
+        </div>
       </div>
 
-      {/* AUDIO + PLAY */}
       <div className="mt-3">
-        <div className="text-xs font-semibold text-stone-700 mb-1">
+        <div className="text-xs font-semibold mb-1" style={{ color: "rgba(58,31,31,0.78)" }}>
           Oyuncakta Duyulacak (16 kHz)
         </div>
-         
+
         <audio ref={audioRef} src={clip.toyUrl} preload="metadata" />
-         <div className="mb-3">
-         </div>
-        <div className="flex items-center justify-between mt-2">
-         
-          <div className="text-xs text-stone-600">
-            Başlangıç: <b>{formatTime(start)}</b> • Bitiş: <b>{formatTime(end)}</b> • Seçili: <b>{formatTime(selectedDuration)}</b>
-          </div>
+
+        <div className="text-xs mt-2" style={{ color: "rgba(58,31,31,0.72)" }}>
+          Başlangıç: <b>{formatTime(start)}</b> • Bitiş: <b>{formatTime(end)}</b> • Seçili: <b>{formatTime(selectedDuration)}</b>
         </div>
 
-        <div className="text-[11px] text-stone-500 mt-1">
+        <div className="text-[11px] mt-1" style={{ color: "rgba(58,31,31,0.55)" }}>
           İpucu: Hassas ayar için <b>SHIFT</b> basılıyken sürükle / tekerlek
         </div>
       </div>
 
-      {/* SLIDER */}
       {duration > 0 ? (
         <div className="space-y-3 mt-4">
-          {/* Gradient bar */}
           <div
-            className="h-2 rounded-lg bg-stone-200"
+            className="h-2 rounded-lg"
             style={{
               background: `linear-gradient(to right,
-                #e7e5e4 0%,
-                #e7e5e4 ${startPct}%,
-                #b45309 ${startPct}%,
-                #b45309 ${endPct}%,
-                #e7e5e4 ${endPct}%,
-                #e7e5e4 100%)`,
+                rgba(0,0,0,0.10) 0%,
+                rgba(0,0,0,0.10) ${startPct}%,
+                var(--accent-dark) ${startPct}%,
+                var(--accent-dark) ${endPct}%,
+                rgba(0,0,0,0.10) ${endPct}%,
+                rgba(0,0,0,0.10) 100%)`,
             }}
           />
 
-          {/* Çift range üst üste */}
           <div className="relative mt-2 pt-7">
             <div
-              className="absolute -top-1 text-[11px] px-2 py-1 rounded-md bg-amber-700 text-white shadow"
-              style={{ left: `${startPct}%`, transform: 'translateX(-50%)' }}
+              className="absolute -top-1 text-[11px] px-2 py-1 rounded-md text-white shadow"
+              style={{ left: `${startPct}%`, transform: "translateX(-50%)", background: "var(--accent)" }}
             >
               {formatTime(start)}
             </div>
 
             <div
-              className="absolute -top-1 text-[11px] px-2 py-1 rounded-md bg-amber-800 text-white shadow"
-              style={{ left: `${endPct}%`, transform: 'translateX(-50%)' }}
+              className="absolute -top-1 text-[11px] px-2 py-1 rounded-md text-white shadow"
+              style={{ left: `${endPct}%`, transform: "translateX(-50%)", background: "var(--accent-dark)" }}
             >
               {formatTime(end)}
             </div>
@@ -1646,13 +1638,13 @@ function HazirClipTrimmer({ clip, onRemove, onUpdate }) {
               max={Math.max(0, duration - MIN_GAP_LOCAL)}
               step={STEP_FINE_LOCAL}
               value={start}
-              onPointerDown={() => setActiveThumb('start')}
-              onMouseDown={() => setActiveThumb('start')}
-              onTouchStart={() => setActiveThumb('start')}
-              onWheel={(e) => handleWheel('start', e)}
+              onPointerDown={() => setActiveThumb("start")}
+              onMouseDown={() => setActiveThumb("start")}
+              onTouchStart={() => setActiveThumb("start")}
+              onWheel={(e) => handleWheel("start", e)}
               onChange={handleStartChange}
               className="w-full hazirTrimRange start"
-              style={{ zIndex: activeThumb === 'start' ? 3 : 2 }}
+              style={{ zIndex: activeThumb === "start" ? 3 : 2 }}
             />
 
             <input
@@ -1661,23 +1653,23 @@ function HazirClipTrimmer({ clip, onRemove, onUpdate }) {
               max={duration}
               step={STEP_FINE_LOCAL}
               value={end}
-              onPointerDown={() => setActiveThumb('end')}
-              onMouseDown={() => setActiveThumb('end')}
-              onTouchStart={() => setActiveThumb('end')}
-              onWheel={(e) => handleWheel('end', e)}
+              onPointerDown={() => setActiveThumb("end")}
+              onMouseDown={() => setActiveThumb("end")}
+              onTouchStart={() => setActiveThumb("end")}
+              onWheel={(e) => handleWheel("end", e)}
               onChange={handleEndChange}
               className="w-full -mt-6 hazirTrimRange end"
-              style={{ zIndex: activeThumb === 'end' ? 3 : 2 }}
+              style={{ zIndex: activeThumb === "end" ? 3 : 2 }}
             />
           </div>
 
-          <div className="flex justify-between text-xs text-stone-500 mt-2">
+          <div className="flex justify-between text-xs mt-2" style={{ color: "rgba(58,31,31,0.55)" }}>
             <span>{formatTime(0)}</span>
             <span>{formatTime(duration)}</span>
           </div>
         </div>
       ) : (
-        <div className="mt-3 text-xs text-amber-700">
+        <div className="mt-3 text-xs" style={{ color: "rgba(58,31,31,0.65)" }}>
           ⏳ Önizleme hazırlanıyor... (toyUrl doğruysa 1–2 sn içinde slider gelir)
         </div>
       )}
@@ -1685,32 +1677,23 @@ function HazirClipTrimmer({ clip, onRemove, onUpdate }) {
   );
 }
 
-
-
+/* =========================================================
+   YouTubeRangePicker (theme applied)
+   ========================================================= */
 function YouTubeRangePicker({ ytDurationSec, formData, setFormData }) {
-  // Video süresi varsa...
   const FALLBACK_MAX = 2 * 60 * 60;
-const videoMax = Math.floor(
-  (Number.isFinite(ytDurationSec) && ytDurationSec > 0) ? ytDurationSec : FALLBACK_MAX
-);
+  const videoMax = Math.floor(Number.isFinite(ytDurationSec) && ytDurationSec > 0 ? ytDurationSec : FALLBACK_MAX);
 
-  // start: 0..videoMax-1 (end > start şartı için)
   const start = clamp(Number(formData.ytStartSec || 0), 0, Math.max(0, videoMax - 1));
 
-  // end default: start+30sn (ama videoMax’i aşamaz)
   const endDefault = clamp(start + 30, 1, videoMax);
-  const endInput = formData.ytEndSec === '' ? endDefault : Number(formData.ytEndSec);
+  const endInput = formData.ytEndSec === "" ? endDefault : Number(formData.ytEndSec);
   const end = clamp(endInput, 0, videoMax);
 
-  // Kurallar:
-  // - end > start (min 1 sn)
-  // - (end - start) <= 310
-  // - end <= videoMax
   const minEnd = clamp(start + 1, 1, videoMax);
   const maxEnd = clamp(Math.min(start + MAX_RANGE_SEC, videoMax), 1, videoMax);
   const safeEnd = clamp(end, minEnd, maxEnd);
 
-  // state tutarsızsa düzelt
   useEffect(() => {
     const ns = String(start);
     const ne = String(safeEnd);
@@ -1723,34 +1706,25 @@ const videoMax = Math.floor(
   const startMS = toMS(start);
   const endMS = toMS(safeEnd);
 
-  // Start dakika seçenekleri: 0..floor((videoMax-1)/60)
   const startMaxMinute = Math.floor(Math.max(0, videoMax - 1) / 60);
   const startMinuteOptions = Array.from({ length: startMaxMinute + 1 }, (_, i) => i);
 
-  // Start saniye seçenekleri: son dakikadaysa (videoMax-1)%60’a kadar
-  const startLastSecMax =
-    startMS.m === startMaxMinute ? (Math.max(0, videoMax - 1) % 60) : 59;
+  const startLastSecMax = startMS.m === startMaxMinute ? Math.max(0, videoMax - 1) % 60 : 59;
   const startSecondOptions = Array.from({ length: startLastSecMax + 1 }, (_, i) => i);
 
-  // End seçenekleri minEnd..maxEnd aralığında
   const endMin = toMS(minEnd);
   const endMax = toMS(maxEnd);
 
-  const endMinuteOptions = Array.from(
-    { length: endMax.m - endMin.m + 1 },
-    (_, k) => endMin.m + k
-  );
+  const endMinuteOptions = Array.from({ length: endMax.m - endMin.m + 1 }, (_, k) => endMin.m + k);
 
   const endSecondOptions = (m) => {
-    const lo = (m === endMin.m) ? endMin.s : 0;
-    const hi = (m === endMax.m) ? endMax.s : 59;
+    const lo = m === endMin.m ? endMin.s : 0;
+    const hi = m === endMax.m ? endMax.s : 59;
     return Array.from({ length: hi - lo + 1 }, (_, i) => lo + i);
   };
 
   const setStartMS = (m, s) => {
     const nextStart = clamp(fromMS(m, s), 0, Math.max(0, videoMax - 1));
-
-    // start değişince end’i otomatik uygun aralığa çek
     const nextMinEnd = clamp(nextStart + 1, 1, videoMax);
     const nextMaxEnd = clamp(Math.min(nextStart + MAX_RANGE_SEC, videoMax), 1, videoMax);
     const nextEnd = clamp(safeEnd, nextMinEnd, nextMaxEnd);
@@ -1769,12 +1743,12 @@ const videoMax = Math.floor(
   };
 
   return (
-    <div className="mt-4 bg-white border border-amber-200 rounded-xl p-4">
-      <div className="text-sm font-semibold text-stone-800 mb-2">
+    <div className="mt-4 bg-white border rounded-xl p-4" style={{ borderColor: "rgba(0,0,0,0.08)" }}>
+      <div className="text-sm font-semibold mb-2" style={{ color: "rgba(58,31,31,0.90)" }}>
         Süre Belirt (Opsiyonel)
       </div>
 
-      <p className="text-xs text-stone-600 mb-3">
+      <p className="text-xs mb-3" style={{ color: "rgba(58,31,31,0.72)" }}>
         Videonun istediğiniz bölümünü seçin.
         <br />
         <b>Maksimum aralık: {fmtMS(MAX_RANGE_SEC)}</b>
@@ -1791,42 +1765,51 @@ const videoMax = Math.floor(
       </p>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-        {/* START */}
-        <div className="bg-amber-50/40 border border-amber-200 rounded-lg p-3">
-          <div className="text-xs font-semibold text-stone-700 mb-2">Başlangıç</div>
+        <div className="border rounded-lg p-3" style={{ background: "rgba(201,122,91,0.10)", borderColor: "rgba(201,122,91,0.20)" }}>
+          <div className="text-xs font-semibold mb-2" style={{ color: "rgba(58,31,31,0.78)" }}>
+            Başlangıç
+          </div>
           <div className="flex gap-2">
             <select
-              className="w-1/2 px-3 py-2 border border-amber-200 rounded-lg text-sm bg-white"
+              className="w-1/2 px-3 py-2 border rounded-lg text-sm bg-white outline-none"
+              style={{ borderColor: "rgba(201,122,91,0.25)", color: "var(--ui-input-text)" }}
               value={startMS.m}
               onChange={(e) => setStartMS(Number(e.target.value), startMS.s)}
             >
               {startMinuteOptions.map((m) => (
-                <option key={m} value={m}>{m} dk</option>
+                <option key={m} value={m}>
+                  {m} dk
+                </option>
               ))}
             </select>
 
             <select
-              className="w-1/2 px-3 py-2 border border-amber-200 rounded-lg text-sm bg-white"
+              className="w-1/2 px-3 py-2 border rounded-lg text-sm bg-white outline-none"
+              style={{ borderColor: "rgba(201,122,91,0.25)", color: "var(--ui-input-text)" }}
               value={startMS.s}
               onChange={(e) => setStartMS(startMS.m, Number(e.target.value))}
             >
               {startSecondOptions.map((s) => (
-                <option key={s} value={s}>{String(s).padStart(2, '0')} sn</option>
+                <option key={s} value={s}>
+                  {String(s).padStart(2, "0")} sn
+                </option>
               ))}
             </select>
           </div>
 
-          <div className="mt-2 text-[11px] text-stone-500">
+          <div className="mt-2 text-[11px]" style={{ color: "rgba(58,31,31,0.55)" }}>
             Seçilen: <b>{fmtMS(start)}</b>
           </div>
         </div>
 
-        {/* END */}
-        <div className="bg-amber-50/40 border border-amber-200 rounded-lg p-3">
-          <div className="text-xs font-semibold text-stone-700 mb-2">Bitiş</div>
+        <div className="border rounded-lg p-3" style={{ background: "rgba(201,122,91,0.10)", borderColor: "rgba(201,122,91,0.20)" }}>
+          <div className="text-xs font-semibold mb-2" style={{ color: "rgba(58,31,31,0.78)" }}>
+            Bitiş
+          </div>
           <div className="flex gap-2">
             <select
-              className="w-1/2 px-3 py-2 border border-amber-200 rounded-lg text-sm bg-white"
+              className="w-1/2 px-3 py-2 border rounded-lg text-sm bg-white outline-none"
+              style={{ borderColor: "rgba(201,122,91,0.25)", color: "var(--ui-input-text)" }}
               value={endMS.m}
               onChange={(e) => {
                 const m = Number(e.target.value);
@@ -1836,28 +1819,33 @@ const videoMax = Math.floor(
               }}
             >
               {endMinuteOptions.map((m) => (
-                <option key={m} value={m}>{m} dk</option>
+                <option key={m} value={m}>
+                  {m} dk
+                </option>
               ))}
             </select>
 
             <select
-              className="w-1/2 px-3 py-2 border border-amber-200 rounded-lg text-sm bg-white"
+              className="w-1/2 px-3 py-2 border rounded-lg text-sm bg-white outline-none"
+              style={{ borderColor: "rgba(201,122,91,0.25)", color: "var(--ui-input-text)" }}
               value={endMS.s}
               onChange={(e) => setEndMS(endMS.m, Number(e.target.value))}
             >
               {endSecondOptions(endMS.m).map((s) => (
-                <option key={s} value={s}>{String(s).padStart(2, '0')} sn</option>
+                <option key={s} value={s}>
+                  {String(s).padStart(2, "0")} sn
+                </option>
               ))}
             </select>
           </div>
 
-          <div className="mt-2 text-[11px] text-stone-500">
+          <div className="mt-2 text-[11px]" style={{ color: "rgba(58,31,31,0.55)" }}>
             Seçilen: <b>{fmtMS(safeEnd)}</b> • Aralık: <b>{fmtMS(safeEnd - start)}</b>
           </div>
         </div>
       </div>
 
-      <div className="mt-3 text-[11px] text-stone-500">
+      <div className="mt-3 text-[11px]" style={{ color: "rgba(58,31,31,0.55)" }}>
         Sistem, bitişi otomatik olarak <b>başlangıç + {fmtMS(MAX_RANGE_SEC)}</b> sınırı içinde tutar.
       </div>
     </div>
@@ -1865,146 +1853,10 @@ const videoMax = Math.floor(
 }
 
 /* =========================================================
-   HAZIR MÜZİK PICKER
-   ========================================================= */
-function HazirMuzikPicker({ formData, setFormData, onToyPreviewCheck }) {
-  const [query, setQuery] = useState('');
-  
-  const filtered = useMemo(() => {
-    const q = query.trim().toLowerCase();
-    if (!q) return SONGS;
-    return SONGS.filter((s) => {
-      const inTitle = s.title.toLowerCase().includes(q);
-      const inTags = (s.tags || []).some((t) => t.toLowerCase().includes(q));
-      return inTitle || inTags;
-    });
-  }, [query]);
-  const [toyPreviewExists, setToyPreviewExists] = useState(null); // null | true | false
-
-const selected = SONGS.find((s) => s.id === formData.hazirMuzikId);
-const toyUrl = selected ? `/previews16k/${selected.id}.mp3` : '';
-
-useEffect(() => {
-  let cancelled = false;
-
-  async function check() {
-    if (!selected) {
-      setToyPreviewExists(null);
-      onToyPreviewCheck?.(null);
-      return;
-    }
-
-    setToyPreviewExists(null); // kontrol ediliyor
-
-    try {
-      const r = await fetch(toyUrl, { method: 'HEAD', cache: 'no-store' });
-      if (cancelled) return;
-
-      if (r.ok) {
-        setToyPreviewExists(true);
-        onToyPreviewCheck?.(true);   // ✅ İŞTE BU EKSİKTİ
-      } else {
-        setToyPreviewExists(false);
-        onToyPreviewCheck?.(false);
-      }
-    } catch {
-      if (cancelled) return;
-      setToyPreviewExists(false);
-      onToyPreviewCheck?.(false);
-    }
-  }
-
-  check();
-  return () => {
-    cancelled = true;
-  };
-}, [selected?.id]);
-
-  return (
-  <div>
-    <p className="text-sm text-stone-700 mb-3">Listeden seçiniz ya da arama yapınız.:</p>
-
-    <input
-      type="text"
-      value={query}
-      onChange={(e) => setQuery(e.target.value)}
-      className="w-full px-4 py-3 border-2 border-amber-200 rounded-xl focus:border-amber-600 focus:outline-none transition mb-3 bg-white"
-      placeholder="Ara: Şarkı İsmi / Tür / Dil"
-    />
-
-    <select
-      value={formData.hazirMuzikId}
-      onChange={(e) => setFormData((p) => ({ ...p, hazirMuzikId: e.target.value }))}
-      className="w-full px-4 py-3 border-2 border-amber-200 rounded-xl focus:border-amber-600 focus:outline-none transition bg-white"
-    >
-      <option value="">— Müzik seç —</option>
-      {filtered.map((s) => (
-        <option key={s.id} value={s.id}>
-          {s.title}
-        </option>
-      ))}
-    </select>
-
-    {filtered.length === 0 && (
-      <div className="mt-3 text-sm text-amber-800">Sonuç yok. Arama kelimesini değiştir.</div>
-    )}
-
-    {selected?.type === 'youtube' && (
-      <div className="mt-4">
-        <div className="flex items-center justify-between mb-2">
-          <div className="text-sm font-semibold text-stone-700">Seçilen: {selected.title}</div>
-          <div className="text-xs text-stone-500">{selected.tags?.length ? selected.tags.join(' • ') : ''}</div>
-        </div>
-
-        <div className="rounded-xl overflow-hidden border border-amber-100 bg-white">
-          <iframe
-            width="100%"
-            height="220"
-            src={`https://www.youtube.com/embed/${selected.youtubeId}`}
-            title={selected.title}
-            frameBorder="0"
-            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-            allowFullScreen
-          />
-        </div>
-      </div>
-    )}
-
-
-    {/* ✅ BU BLOK ARTIK ROOT DIV’İN İÇİNDE */}
-    {selected && (
-      <div className="mt-4 bg-white border border-amber-200 rounded-xl p-4">
-        <div className="text-sm font-semibold text-stone-800 mb-2">
-          Oyuncakta Duyulacak (16 kHz • Mono)
-        </div>
-
-        {toyPreviewExists === null && (
-          <div className="text-xs text-stone-600">Kontrol ediliyor...</div>
-        )}
-
-        {toyPreviewExists === false && (
-          <div className="text-xs text-red-700">
-            Bu şarkı için 16 kHz önizleme dosyası bulunamadı.
-            <br />
-            Lütfen <b>public/previews16k/{selected?.id}.mp3</b> dosyasını ekleyin
-            veya kullanıcıya “dosya yükle / süre belirt” seçeneklerini kullandırın.
-          </div>
-        )}
-
-        {toyPreviewExists === true && (
-          <audio controls src={toyUrl} className="w-full" />
-        )}
-      </div>
-    )}
-  </div>
-);
-}
-
-/* =========================================================
-   İNTERNETTEN MÜZİK (YouTube preview)
+   InternetMuzik (theme applied)
    ========================================================= */
 function InternetMuzik({ youtubeLink, onChange, videoId, onDuration }) {
-  const hasInput = (youtubeLink || '').trim().length > 0;
+  const hasInput = (youtubeLink || "").trim().length > 0;
   const playerRef = useRef(null);
   const hostRef = useRef(null);
 
@@ -2024,14 +1876,16 @@ function InternetMuzik({ youtubeLink, onChange, videoId, onDuration }) {
       if (!(window.YT && window.YT.Player)) return;
 
       if (playerRef.current) {
-        try { playerRef.current.destroy(); } catch {}
+        try {
+          playerRef.current.destroy();
+        } catch {}
         playerRef.current = null;
       }
 
       playerRef.current = new window.YT.Player(hostRef.current, {
         videoId,
-        width: '100%',
-        height: '220',
+        width: "100%",
+        height: "220",
         playerVars: { rel: 0, modestbranding: 1 },
         events: {
           onReady: () => {
@@ -2072,14 +1926,14 @@ function InternetMuzik({ youtubeLink, onChange, videoId, onDuration }) {
 
     return () => {
       destroyed = true;
-
       if (pollTimer) {
         clearInterval(pollTimer);
         pollTimer = null;
       }
-
       if (playerRef.current) {
-        try { playerRef.current.destroy(); } catch {}
+        try {
+          playerRef.current.destroy();
+        } catch {}
         playerRef.current = null;
       }
     };
@@ -2087,7 +1941,7 @@ function InternetMuzik({ youtubeLink, onChange, videoId, onDuration }) {
 
   return (
     <div>
-      <p className="text-sm text-stone-700 mb-3">
+      <p className="text-sm mb-3" style={{ color: "rgba(58,31,31,0.80)" }}>
         YouTube linki gir (yapıştırınca otomatik önizleme çıkar):
       </p>
 
@@ -2095,21 +1949,28 @@ function InternetMuzik({ youtubeLink, onChange, videoId, onDuration }) {
         type="url"
         value={youtubeLink}
         onChange={(e) => onChange(e.target.value)}
-        className="w-full px-4 py-3 border-2 border-amber-200 rounded-xl focus:border-amber-600 focus:outline-none transition bg-white"
+        className="w-full px-4 py-3 rounded-xl outline-none transition border-2 bg-white"
+        style={S.input}
         placeholder="https://youtube.com/watch?v=...  veya  https://youtu.be/..."
+        onFocus={(e) => (e.currentTarget.style.borderColor = "var(--accent-dark)")}
+        onBlur={(e) => (e.currentTarget.style.borderColor = "var(--ui-input-border)")}
       />
 
       {hasInput && !videoId && (
-        <div className="mt-3 bg-red-50 border border-red-200 rounded-lg p-3 flex items-start gap-2">
-          <AlertCircle className="w-4 h-4 text-red-600 mt-0.5" />
-          <div className="text-xs text-red-700">Linki YouTube olarak okuyamadım.</div>
+        <div className="mt-3 rounded-lg p-3 flex items-start gap-2 border" style={{ background: "var(--danger-bg)", borderColor: "var(--danger-border)" }}>
+          <AlertCircle className="w-4 h-4 mt-0.5" style={{ color: "var(--danger)" }} />
+          <div className="text-xs" style={{ color: "var(--danger)" }}>
+            Linki YouTube olarak okuyamadım.
+          </div>
         </div>
       )}
 
       {videoId && (
         <div className="mt-4">
-          <div className="text-sm font-semibold text-stone-700 mb-2">Önizleme:</div>
-          <div className="rounded-xl overflow-hidden border border-amber-100 bg-white">
+          <div className="text-sm font-semibold mb-2" style={{ color: "rgba(58,31,31,0.78)" }}>
+            Önizleme:
+          </div>
+          <div className="rounded-xl overflow-hidden border bg-white" style={{ borderColor: "rgba(0,0,0,0.08)" }}>
             <div ref={hostRef} />
           </div>
         </div>
@@ -2118,9 +1979,8 @@ function InternetMuzik({ youtubeLink, onChange, videoId, onDuration }) {
   );
 }
 
-
 /* =========================================================
-   DOSYA TRIMMER (multi-file metadata fix + trim sırasında kırpma)
+   DosyaTrimmer (theme + slider colors)
    ========================================================= */
 function DosyaTrimmer({ dosya, onRemove, onUpdate }) {
   const MAX_DURATION = 310;
@@ -2128,47 +1988,37 @@ function DosyaTrimmer({ dosya, onRemove, onUpdate }) {
   const [activeThumb, setActiveThumb] = useState(null);
   const audioRef = useRef(null);
 
-  const MIN_GAP = 0.05;
+  const MIN_GAP_LOCAL = 0.05;
   const STEP_NORMAL = 0.05;
-  const STEP_FINE = 0.005;
-  console.log(dosya.preview16kReady, dosya.preview16kUrl);
-useEffect(() => {
-  if (!dosya.isReady) return;
-  if (dosya.trimEnd <= dosya.trimStart) return;
+  const STEP_FINE_LOCAL = 0.005;
 
-  // Kullanıcı sürüklüyorken spam üretme
-  const t = setTimeout(async () => {
-    try {
-      // eski preview url'i temizle
-      if (dosya.preview16kUrl) URL.revokeObjectURL(dosya.preview16kUrl);
+  useEffect(() => {
+    if (!dosya.isReady) return;
+    if (dosya.trimEnd <= dosya.trimStart) return;
 
-      // "hazırlanıyor" göstermek için (istersen)
-      onUpdate(dosya.id, { preview16kReady: false });
+    const t = setTimeout(async () => {
+      try {
+        if (dosya.preview16kUrl) URL.revokeObjectURL(dosya.preview16kUrl);
+        onUpdate(dosya.id, { preview16kReady: false });
 
-      const wavBlob = await fileTo16kWavBlob(
-        dosya.file,
-        dosya.trimStart,
-        dosya.trimEnd,
-        16000
-      );
+        const wavBlob = await fileTo16kWavBlob(dosya.file, dosya.trimStart, dosya.trimEnd, 16000);
+        const purl = URL.createObjectURL(wavBlob);
+        onUpdate(dosya.id, { preview16kUrl: purl, preview16kReady: true });
+      } catch (e) {
+        console.error("trim 16k failed", e);
+      }
+    }, 300);
 
-      const purl = URL.createObjectURL(wavBlob);
-      onUpdate(dosya.id, { preview16kUrl: purl, preview16kReady: true });
-    } catch (e) {
-      console.error('trim 16k failed', e);
-    }
-  }, 300); // 300ms: kasmayı ciddi azaltır (istersen 500 yap)
+    return () => clearTimeout(t);
+  }, [dosya.isReady, dosya.trimStart, dosya.trimEnd]);
 
-  return () => clearTimeout(t);
-}, [dosya.isReady, dosya.trimStart, dosya.trimEnd]);
-  // metadata probe (2. dosya takılma fix)
   useEffect(() => {
     let cancelled = false;
 
     if (dosya.isReady && dosya.duration > 0) return;
 
     const probe = new Audio();
-    probe.preload = 'metadata';
+    probe.preload = "metadata";
     probe.src = dosya.url;
 
     const done = (dur) => {
@@ -2188,7 +2038,7 @@ useEffect(() => {
       setTimeout(() => {
         if (cancelled) return;
         const retry = new Audio();
-        retry.preload = 'metadata';
+        retry.preload = "metadata";
         retry.src = dosya.url;
         retry.onloadedmetadata = () => done(retry.duration);
         retry.load();
@@ -2199,11 +2049,10 @@ useEffect(() => {
 
     return () => {
       cancelled = true;
-      probe.src = '';
+      probe.src = "";
     };
   }, [dosya.id, dosya.url]);
 
-  // play sırasında trim uygula
   useEffect(() => {
     const audio = audioRef.current;
     if (!audio) return;
@@ -2225,106 +2074,69 @@ useEffect(() => {
       if (audioRef.current) audioRef.current.currentTime = dosya.trimStart;
     };
 
-    audio.addEventListener('timeupdate', onTime);
-    audio.addEventListener('ended', onEnded);
+    audio.addEventListener("timeupdate", onTime);
+    audio.addEventListener("ended", onEnded);
     return () => {
-      audio.removeEventListener('timeupdate', onTime);
-      audio.removeEventListener('ended', onEnded);
+      audio.removeEventListener("timeupdate", onTime);
+      audio.removeEventListener("ended", onEnded);
     };
   }, [isPlaying, dosya.trimStart, dosya.trimEnd]);
 
   const formatTime = (s) => {
-    if (s === null || s === undefined || isNaN(s)) return '0:00';
+    if (s === null || s === undefined || isNaN(s)) return "0:00";
     const m = Math.floor(s / 60);
     const sec = Math.floor(s % 60);
-    return `${m}:${sec.toString().padStart(2, '0')}`;
-  };
-
-  const togglePlay = async () => {
-    const audio = audioRef.current;
-    if (!audio || !dosya.isReady) return;
-
-    if (isPlaying) {
-      audio.pause();
-      setIsPlaying(false);
-      return;
-    }
-
-    try {
-      audio.currentTime = dosya.trimStart;
-      await audio.play();
-      setIsPlaying(true);
-    } catch (e) {
-      console.error(e);
-      setIsPlaying(false);
-      alert('Tarayıcı ses çalmayı engelledi. Play’e tekrar bas.');
-    }
+    return `${m}:${sec.toString().padStart(2, "0")}`;
   };
 
   const snap = (val, step) => Math.round(val / step) * step;
-  const getStep = (e) => (e.shiftKey ? STEP_FINE : STEP_NORMAL);
+  const getStep = (e) => (e.shiftKey ? STEP_FINE_LOCAL : STEP_NORMAL);
 
   const handleStartChange = (e) => {
     const step = getStep(e);
     const raw = parseFloat(e.target.value);
     const value = snap(raw, step);
-    const clamped = Math.min(value, dosya.trimEnd - MIN_GAP);
+    const clamped = Math.min(value, dosya.trimEnd - MIN_GAP_LOCAL);
     const next = Math.max(0, clamped);
 
     onUpdate(dosya.id, { trimStart: next });
     if (audioRef.current && isPlaying) audioRef.current.currentTime = next;
   };
 
- const handleEndChange = (e) => {
-  const step = getStep(e);
-  const raw = parseFloat(e.target.value);
-  const value = snap(raw, step);
+  const handleEndChange = (e) => {
+    const step = getStep(e);
+    const raw = parseFloat(e.target.value);
+    const value = snap(raw, step);
 
-  // HARD LIMIT
-  const hardEnd = Math.min(
-    dosya.trimStart + MAX_DURATION,
-    dosya.duration
-  );
-
-  const clamped = Math.max(value, dosya.trimStart + MIN_GAP);
-  const next = Math.min(clamped, hardEnd);
-
-  onUpdate(dosya.id, { trimEnd: next });
-};
-
-  const handleWheel = (type, e) => {
-  e.preventDefault();
-  const step = e.shiftKey ? STEP_FINE : STEP_NORMAL;
-  const dir = e.deltaY < 0 ? step : -step;
-
-  if (type === 'start') {
-    const next = Math.min(
-      Math.max(0, dosya.trimStart + dir),
-      dosya.trimEnd - MIN_GAP
-    );
-    onUpdate(dosya.id, { trimStart: next });
-    if (audioRef.current && isPlaying) audioRef.current.currentTime = next;
-  } else {
-    const hardEnd = Math.min(
-      dosya.trimStart + MAX_DURATION,
-      dosya.duration
-    );
-
-    const next = Math.max(
-      Math.min(dosya.trimEnd + dir, hardEnd),
-      dosya.trimStart + MIN_GAP
-    );
+    const hardEnd = Math.min(dosya.trimStart + MAX_DURATION, dosya.duration);
+    const clamped = Math.max(value, dosya.trimStart + MIN_GAP_LOCAL);
+    const next = Math.min(clamped, hardEnd);
 
     onUpdate(dosya.id, { trimEnd: next });
-  }
-};
+  };
+
+  const handleWheel = (type, e) => {
+    e.preventDefault();
+    const step = e.shiftKey ? STEP_FINE_LOCAL : STEP_NORMAL;
+    const dir = e.deltaY < 0 ? step : -step;
+
+    if (type === "start") {
+      const next = Math.min(Math.max(0, dosya.trimStart + dir), dosya.trimEnd - MIN_GAP_LOCAL);
+      onUpdate(dosya.id, { trimStart: next });
+      if (audioRef.current && isPlaying) audioRef.current.currentTime = next;
+    } else {
+      const hardEnd = Math.min(dosya.trimStart + MAX_DURATION, dosya.duration);
+      const next = Math.max(Math.min(dosya.trimEnd + dir, hardEnd), dosya.trimStart + MIN_GAP_LOCAL);
+      onUpdate(dosya.id, { trimEnd: next });
+    }
+  };
 
   const selectedDuration = dosya.trimEnd - dosya.trimStart;
   const startPct = dosya.duration ? (dosya.trimStart / dosya.duration) * 100 : 0;
   const endPct = dosya.duration ? (dosya.trimEnd / dosya.duration) * 100 : 0;
 
   return (
-    <div className="bg-white border border-amber-200 rounded-xl p-4">
+    <div className="bg-white border rounded-xl p-4" style={{ borderColor: "rgba(0,0,0,0.08)" }}>
       <style>{`
         .trimRange {
           -webkit-appearance: none;
@@ -2344,62 +2156,60 @@ useEffect(() => {
           height: 16px;
           border-radius: 9999px;
           background: white;
-          border: 2px solid #b45309;
+          border: 2px solid var(--accent-dark);
           box-shadow: 0 1px 3px rgba(0,0,0,0.25);
           pointer-events: auto;
           cursor: grab;
         }
-        .trimRange.end::-webkit-slider-thumb { border-color: #92400e; }
+        .trimRange.end::-webkit-slider-thumb { border-color: var(--accent-dark); }
         .trimRange::-moz-range-thumb {
           width: 16px;
           height: 16px;
           border-radius: 9999px;
           background: white;
-          border: 2px solid #b45309;
+          border: 2px solid var(--accent-dark);
           box-shadow: 0 1px 3px rgba(0,0,0,0.25);
           pointer-events: auto;
           cursor: grab;
         }
-        .trimRange.end::-moz-range-thumb { border-color: #92400e; }
+        .trimRange.end::-moz-range-thumb { border-color: var(--accent-dark); }
         .trimRange::-moz-range-track { background: transparent; border: none; }
       `}</style>
 
       <audio ref={audioRef} src={dosya.url} preload="metadata" />
 
-       <div className="mt-3">
-  <div className="text-xs font-semibold text-stone-700 mb-1">
-    Orijinal Ses
-  </div>
+      <div className="mt-3">
+        <div className="text-xs font-semibold mb-1" style={{ color: "rgba(58,31,31,0.78)" }}>
+          Orijinal Ses
+        </div>
+        <audio controls src={dosya.url} className="w-full" />
+      </div>
 
-  <audio controls src={dosya.url} className="w-full" />
-</div>
-      {/* Oyuncakta duyulacak 16k preview */}
-<div className="mt-3">
-  <div className="text-xs font-semibold text-stone-700 mb-1">
-    Oyuncakta Duyulacak (16 kHz)
-  </div>
+      <div className="mt-3">
+        <div className="text-xs font-semibold mb-1" style={{ color: "rgba(58,31,31,0.78)" }}>
+          Oyuncakta Duyulacak (16 kHz)
+        </div>
 
-  {!dosya.preview16kReady && (
-    <div className="text-xs text-amber-700">⏳ 16 kHz önizleme hazırlanıyor...</div>
-  )}
+        {!dosya.preview16kReady && <div className="text-xs" style={{ color: "rgba(58,31,31,0.65)" }}>⏳ 16 kHz önizleme hazırlanıyor...</div>}
+        {dosya.preview16kReady && dosya.preview16kUrl && <audio controls src={dosya.preview16kUrl} className="w-full" />}
+      </div>
 
-  {dosya.preview16kReady && dosya.preview16kUrl && (
-    <audio controls src={dosya.preview16kUrl} className="w-full" />
-  )}
-</div>
-
-      <div className="flex items-center justify-between mb-3">
+      <div className="flex items-center justify-between mb-3 mt-3">
         <div className="flex items-center gap-2 flex-1 min-w-0">
-         
-
           <div className="flex-1 min-w-0">
-            <span className="text-sm text-stone-800 truncate block">{dosya.name}</span>
+            <span className="text-sm truncate block" style={{ color: "rgba(58,31,31,0.90)" }}>
+              {dosya.name}
+            </span>
             {!dosya.isReady ? (
-              <span className="text-xs text-amber-700 animate-pulse">⏳ Dosya hazırlanıyor...</span>
+              <span className="text-xs animate-pulse" style={{ color: "rgba(58,31,31,0.65)" }}>
+                ⏳ Dosya hazırlanıyor...
+              </span>
             ) : (
-              <span className="text-xs text-stone-600">✓ Hazır - Toplam: {formatTime(dosya.duration)}</span>
+              <span className="text-xs" style={{ color: "rgba(58,31,31,0.65)" }}>
+                ✓ Hazır - Toplam: {formatTime(dosya.duration)}
+              </span>
             )}
-            <div className="text-[11px] text-stone-500 mt-1">
+            <div className="text-[11px] mt-1" style={{ color: "rgba(58,31,31,0.55)" }}>
               İpucu: Hassas ayar için <b>SHIFT</b> + <b>mouse tekerleğini</b> kullanınız
             </div>
           </div>
@@ -2408,81 +2218,84 @@ useEffect(() => {
         <button
           type="button"
           onClick={() => onRemove(dosya.id)}
-          className="p-2 rounded-full bg-red-100 hover:bg-red-200 transition flex-shrink-0"
+          className="p-2 rounded-full transition flex-shrink-0"
+          style={{ background: "var(--danger-bg)" }}
           title="Sil"
         >
-          <X className="w-4 h-4 text-red-600" />
+          <X className="w-4 h-4" style={{ color: "var(--danger)" }} />
         </button>
       </div>
 
       {dosya.isReady && dosya.duration > 0 && (
         <div className="space-y-3 mt-4">
-          <div className="flex justify-between text-xs text-stone-700">
+          <div className="flex justify-between text-xs" style={{ color: "rgba(58,31,31,0.75)" }}>
             <span>
               Başlangıç: <strong>{formatTime(dosya.trimStart)}</strong>
             </span>
             <span>
               Bitiş: <strong>{formatTime(dosya.trimEnd)}</strong>
             </span>
-            <span className={selectedDuration > 310 ? 'text-red-600 font-bold' : 'text-green-700 font-bold'}>
+            <span style={{ fontWeight: 700, color: selectedDuration > 310 ? "var(--danger)" : "var(--wave-primary)" }}>
               Süre: {formatTime(selectedDuration)}
             </span>
           </div>
 
           <div className="relative">
             <div
-              className="h-2 rounded-lg bg-stone-200"
+              className="h-2 rounded-lg"
               style={{
                 background: `linear-gradient(to right,
-                  #e7e5e4 0%,
-                  #e7e5e4 ${startPct}%,
-                  #b45309 ${startPct}%,
-                  #b45309 ${endPct}%,
-                  #e7e5e4 ${endPct}%,
-                  #e7e5e4 100%)`,
+                  rgba(0,0,0,0.10) 0%,
+                  rgba(0,0,0,0.10) ${startPct}%,
+                  var(--accent-dark) ${startPct}%,
+                  var(--accent-dark) ${endPct}%,
+                  rgba(0,0,0,0.10) ${endPct}%,
+                  rgba(0,0,0,0.10) 100%)`,
               }}
             />
 
             <input
               type="range"
               min="0"
-              max={Math.max(0, dosya.duration - MIN_GAP)}
-              step={STEP_FINE}
+              max={Math.max(0, dosya.duration - MIN_GAP_LOCAL)}
+              step={STEP_FINE_LOCAL}
               value={dosya.trimStart}
-              onPointerDown={() => setActiveThumb('start')}
-              onMouseDown={() => setActiveThumb('start')}
-              onTouchStart={() => setActiveThumb('start')}
-              onWheel={(e) => handleWheel('start', e)}
+              onPointerDown={() => setActiveThumb("start")}
+              onMouseDown={() => setActiveThumb("start")}
+              onTouchStart={() => setActiveThumb("start")}
+              onWheel={(e) => handleWheel("start", e)}
               onChange={handleStartChange}
               className="trimRange start"
-              style={{ zIndex: activeThumb === 'start' ? 3 : 2 }}
+              style={{ zIndex: activeThumb === "start" ? 3 : 2 }}
             />
 
             <input
               type="range"
-              min={MIN_GAP}
+              min={MIN_GAP_LOCAL}
               max={dosya.duration}
-              step={STEP_FINE}
+              step={STEP_FINE_LOCAL}
               value={dosya.trimEnd}
-              onPointerDown={() => setActiveThumb('end')}
-              onMouseDown={() => setActiveThumb('end')}
-              onTouchStart={() => setActiveThumb('end')}
-              onWheel={(e) => handleWheel('end', e)}
+              onPointerDown={() => setActiveThumb("end")}
+              onMouseDown={() => setActiveThumb("end")}
+              onTouchStart={() => setActiveThumb("end")}
+              onWheel={(e) => handleWheel("end", e)}
               onChange={handleEndChange}
               className="trimRange end"
-              style={{ zIndex: activeThumb === 'end' ? 3 : 2 }}
+              style={{ zIndex: activeThumb === "end" ? 3 : 2 }}
             />
 
-            <div className="flex justify-between text-xs text-stone-400 mt-2">
+            <div className="flex justify-between text-xs mt-2" style={{ color: "rgba(58,31,31,0.50)" }}>
               <span>0:00</span>
               <span>{formatTime(dosya.duration)}</span>
             </div>
           </div>
 
           {selectedDuration > 310 && (
-            <div className="bg-red-50 border border-red-200 rounded-lg p-2 flex items-center gap-2">
-              <AlertCircle className="w-4 h-4 text-red-600 flex-shrink-0" />
-              <p className="text-xs text-red-600">Seçili süre 310 saniyeden fazla! Lütfen kısaltın.</p>
+            <div className="rounded-lg p-2 flex items-center gap-2 border" style={{ background: "var(--danger-bg)", borderColor: "var(--danger-border)" }}>
+              <AlertCircle className="w-4 h-4 flex-shrink-0" style={{ color: "var(--danger)" }} />
+              <p className="text-xs" style={{ color: "var(--danger)" }}>
+                Seçili süre 310 saniyeden fazla! Lütfen kısaltın.
+              </p>
             </div>
           )}
         </div>
