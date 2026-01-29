@@ -17,7 +17,7 @@ const THEME_VARS = `
   --bg-primary:#C93D45;     /* orta kırmızı */
   --bg-deep:#AD2530;        /* koyu kırmızı */
   --bg-edge:#E88C86;        /* yumuşak pembe kırmızı */
-
+ --bg-secondary:#E88C86;
   /* TEXT (MEMORA yazısı gibi krem) */
   --text-primary:#FBDFC3;   /* krem */
   --text-secondary:#FFE9D7; /* daha açık krem */
@@ -63,6 +63,12 @@ const S = {
 card: {
   background: "var(--card-bg)",
   border: "1px solid var(--card-border)",
+  backdropFilter: "blur(10px)",
+  WebkitBackdropFilter: "blur(10px)",
+},
+glassCard: {
+  background: "rgba(255,255,255,0.10)",     // beyaz değil, cam
+  border: "1px solid rgba(255,255,255,0.18)",
   backdropFilter: "blur(10px)",
   WebkitBackdropFilter: "blur(10px)",
 },
@@ -853,14 +859,14 @@ export default function SesliOyuncakSiparis() {
       {showNotice && (
         <div className="fixed inset-0 z-50 flex items-center justify-center px-4">
           <div className="absolute inset-0" style={{ background: "rgba(0,0,0,0.45)" }} />
-          <div className="relative w-full max-w-xl rounded-2xl shadow-2xl border bg-white" style={{ borderColor: "rgba(0,0,0,0.08)" }}>
+<div
+  className="relative w-full max-w-xl rounded-2xl shadow-2xl border"
+  style={S.glassCard}
+>
             <div className="p-6">
-              <h3 className="text-lg font-bold mb-3" style={{ color: "var(--ui-input-text)" }}>
-                Önemli Bilgilendirme
-              </h3>
-              <p className="text-sm leading-relaxed whitespace-pre-line" style={{ color: "rgba(58,31,31,0.85)" }}>
-                {NOTICE_TEXT}
-              </p>
+<h3 className="text-lg font-bold mb-3" style={{ color: "#FBDFC3" }}>Önemli Bilgilendirme</h3>
+<p className="text-sm leading-relaxed whitespace-pre-line" style={{ color: "#FFE9D7" }}>{NOTICE_TEXT}</p>
+
               <button
                 type="button"
                 onClick={() => setShowNotice(false)}
@@ -883,12 +889,12 @@ export default function SesliOyuncakSiparis() {
     backgroundSize: "cover",
     backgroundPosition: "center",
     backgroundRepeat: "no-repeat",
-    backgroundAttachment: "fixed",
   }}
 >
         <div className="max-w-2xl mx-auto">
           {/* HEADER */}
-         <div className="rounded-3xl shadow-xl p-8 mb-8 text-center border" style={S.card}>
+        <div className="rounded-3xl shadow-xl p-8 mb-8 text-center" style={S.glassCard}>
+
             <div
               className="w-32 h-32 mx-auto mb-4 rounded-2xl shadow-inner border overflow-hidden flex items-center justify-center"
               style={{
@@ -907,17 +913,32 @@ export default function SesliOyuncakSiparis() {
               />
             </div>
 
-          <h1 className="text-3xl font-bold mb-2" style={{ color: "var(--text-primary)" }}>
-              Memora Ön Sipariş Ekranı
-            </h1>
-            <p style={{ color: "var(--text-secondary)" }}>Sevdikleriniz için özel, sesli bir oyuncak oluşturun!</p>
+<h1 className="text-3xl font-bold mb-2" style={{ color: "#FBDFC3", letterSpacing: 0.5 }}>
+  Memora Ön Sipariş Ekranı
+</h1>
+
+<p style={{ color: "#FFE9D7", fontWeight: 500 }}>
+  Sevdikleriniz için özel, sesli bir oyuncak oluşturun!
+</p>
+
+<div
+  style={{
+    width: 140,
+    height: 6,
+    margin: "14px auto 0",
+    borderRadius: 999,
+    background: "linear-gradient(90deg, transparent, var(--wave-primary), transparent)",
+    opacity: 0.95,
+  }}
+/>
           </div>
 
           {/* FORM */}
-          <div className="rounded-3xl shadow-xl p-8 border" style={S.card}>
+         <div className="rounded-3xl shadow-xl p-8" style={S.glassCard}>
+
             {/* İLETİŞİM */}
             <div className="mb-8">
-              <h2 className="text-xl font-semibold mb-4 flex items-center" style={S.titleOnWhite}>
+              <h2 className="text-xl font-semibold mb-4 flex items-center" style={{ color: "var(--text-primary)" }}>
                 <User className="w-5 h-5 mr-2" style={{ color: "var(--accent-dark)" }} />
                 İletişim Bilgileri
               </h2>
@@ -993,7 +1014,9 @@ borderColor: "rgba(246,188,170,0.22)",
                       className="border-2 border-dashed rounded-xl p-8 text-center transition mb-4"
                       style={{
                         borderColor: "rgba(201,122,91,0.35)",
-                        background: "white",
+                        background: "rgba(255,255,255,0.10)",
+backdropFilter: "blur(8px)",
+WebkitBackdropFilter: "blur(8px)",
                       }}
                     >
                       <Upload className="w-12 h-12 mx-auto mb-3" style={{ color: "var(--accent-dark)" }} />
@@ -1534,7 +1557,7 @@ function HazirClipTrimmer({ clip, onRemove, onUpdate }) {
   const endPct = duration ? (end / duration) * 100 : 0;
 
   return (
-    <div className="bg-white border rounded-xl p-4" style={{ borderColor: "rgba(0,0,0,0.08)" }}>
+<div className="border rounded-xl p-4" style={S.glassCard}>
       <style>{`
         .hazirTrimRange{
           -webkit-appearance:none;
@@ -1637,8 +1660,8 @@ function HazirClipTrimmer({ clip, onRemove, onUpdate }) {
               background: `linear-gradient(to right,
                 rgba(0,0,0,0.10) 0%,
                 rgba(0,0,0,0.10) ${startPct}%,
-                var(--accent-dark) ${startPct}%,
-                var(--accent-dark) ${endPct}%,
+var(--wave-primary) ${startPct}%,
+var(--wave-primary) ${endPct}%,
                 rgba(0,0,0,0.10) ${endPct}%,
                 rgba(0,0,0,0.10) 100%)`,
             }}
@@ -2163,7 +2186,8 @@ function DosyaTrimmer({ dosya, onRemove, onUpdate }) {
   const endPct = dosya.duration ? (dosya.trimEnd / dosya.duration) * 100 : 0;
 
   return (
-    <div className="bg-white border rounded-xl p-4" style={{ borderColor: "rgba(0,0,0,0.08)" }}>
+<div className="border rounded-xl p-4" style={S.glassCard}>
+
       <style>{`
         .trimRange {
           -webkit-appearance: none;
@@ -2274,8 +2298,8 @@ function DosyaTrimmer({ dosya, onRemove, onUpdate }) {
                 background: `linear-gradient(to right,
                   rgba(0,0,0,0.10) 0%,
                   rgba(0,0,0,0.10) ${startPct}%,
-                  var(--accent-dark) ${startPct}%,
-                  var(--accent-dark) ${endPct}%,
+var(--wave-primary) ${startPct}%,
+var(--wave-primary) ${endPct}%,
                   rgba(0,0,0,0.10) ${endPct}%,
                   rgba(0,0,0,0.10) 100%)`,
               }}
