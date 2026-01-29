@@ -13,29 +13,41 @@ const MAX_RANGE_SEC = 310; // 5dk 10sn
    ========================================================= */
 const THEME_VARS = `
 :root{
-  --bg-primary:#B8343A;
-  --bg-secondary:#E86A6A;
-  --text-primary:#F3D6B5;
-  --text-secondary:#F8E6CF;
-  --text-muted:#E0BFA0;
+  /* Background (foto) */
+  --bg-primary:#B02329;      /* merkez koyu kırmızı */
+  --bg-secondary:#FBC2BC;    /* kenar pembe */
+  --bg-edge:#FCE2DC;         /* en dış açık pembe */
+
+  /* Text (foto) */
+  --text-primary:#FADCC2;    /* MEMORA yazısı gibi krem */
+  --text-secondary:#FFE9D7;  /* daha açık krem */
+  --text-muted:#F2C9B2;
   --text-inverse:#FFFFFF;
-  --accent:#C97A5B;
-  --accent-dark:#A85A3A;
-  --wave-primary:#3E6B4A;
-  --wave-dark:#2F5238;
+
+  /* Brand / accent (logo çemberi-şeftali) */
+  --accent:#F6BCAA;
+  --accent-dark:#E09A85;
+
+  /* Wave (yeşil dalga) */
+  --wave-primary:#407A36;
+  --wave-dark:#2F5A2A;
+
+  /* Flower */
   --flower-petal:#FFFFFF;
-  --flower-center:#F2C94C;
-  --ui-btn-bg:#C97A5B;
+  --flower-center:#F5BA55;
+
+  /* UI */
+  --ui-btn-bg:var(--accent);
   --ui-btn-text:#FFFFFF;
-  --ui-btn-hover:#A85A3A;
+  --ui-btn-hover:var(--accent-dark);
+
   --ui-input-bg:#FFFFFF;
-  --ui-input-border:#E0BFA0;
+  --ui-input-border:#E7B9A3;
   --ui-input-text:#3A1F1F;
+
   --danger:#9B2C2C;
   --danger-bg:rgba(155,44,44,0.12);
   --danger-border:rgba(155,44,44,0.25);
-  --soft-border:rgba(255,255,255,0.18);
-  --soft-bg:rgba(255,255,255,0.10);
 }
 `;
 
@@ -858,7 +870,15 @@ export default function SesliOyuncakSiparis() {
       )}
 
       {/* PAGE */}
-      <div className="min-h-screen py-10 px-4" style={S.pageBg}>
+      <div
+  className="min-h-screen py-10 px-4"
+  style={{
+    backgroundImage: "url('/memora-bg.png')",
+    backgroundSize: "cover",
+    backgroundPosition: "center",
+    backgroundRepeat: "no-repeat",
+  }}
+>
         <div className="max-w-2xl mx-auto">
           {/* HEADER */}
           <div className="rounded-3xl shadow-xl p-8 mb-8 text-center" style={S.card}>
@@ -921,8 +941,8 @@ export default function SesliOyuncakSiparis() {
               <div
                 className="rounded-xl p-4 mb-4 flex items-start gap-3 border"
                 style={{
-                  background: "rgba(201,122,91,0.14)",
-                  borderColor: "rgba(201,122,91,0.22)",
+              background: "rgba(246,188,170,0.14)"  // --accent’in transparanı
+              borderColor: "rgba(246,188,170,0.22)"
                 }}
               >
                 <AlertCircle className="w-5 h-5 flex-shrink-0 mt-0.5" style={{ color: "var(--accent-dark)" }} />
