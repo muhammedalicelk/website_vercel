@@ -13,24 +13,24 @@ const MAX_RANGE_SEC = 310; // 5dk 10sn
    ========================================================= */
 const THEME_VARS = `
 :root{
-  /* Background (foto) */
-  --bg-primary:#B02329;      /* merkez koyu kırmızı */
-  --bg-secondary:#FBC2BC;    /* kenar pembe */
-  --bg-edge:#FCE2DC;         /* en dış açık pembe */
+  /* BACKGROUND (foto dokusu üstüne oturacak referans tonlar) */
+  --bg-primary:#C93D45;     /* orta kırmızı */
+  --bg-deep:#AD2530;        /* koyu kırmızı */
+  --bg-edge:#E88C86;        /* yumuşak pembe kırmızı */
 
-  /* Text (foto) */
-  --text-primary:#FADCC2;    /* MEMORA yazısı gibi krem */
-  --text-secondary:#FFE9D7;  /* daha açık krem */
+  /* TEXT (MEMORA yazısı gibi krem) */
+  --text-primary:#FBDFC3;   /* krem */
+  --text-secondary:#FFE9D7; /* daha açık krem */
   --text-muted:#F2C9B2;
   --text-inverse:#FFFFFF;
 
-  /* Brand / accent (logo çemberi-şeftali) */
-  --accent:#F6BCAA;
-  --accent-dark:#E09A85;
+  /* ACCENT (çember şeftali) */
+  --accent:#FAC2A4;         /* şeftali */
+  --accent-dark:#E9AA8E;
 
-  /* Wave (yeşil dalga) */
-  --wave-primary:#407A36;
-  --wave-dark:#2F5A2A;
+  /* GREEN (wave gibi zeytin yeşili) */
+  --wave-primary:#525F32;   /* zeytin */
+  --wave-dark:#3F4A26;
 
   /* Flower */
   --flower-petal:#FFFFFF;
@@ -38,27 +38,34 @@ const THEME_VARS = `
 
   /* UI */
   --ui-btn-bg:var(--accent);
-  --ui-btn-text:#FFFFFF;
+  --ui-btn-text:#3A1F1F;     /* buton yazısı krem değil, daha şık koyu */
   --ui-btn-hover:var(--accent-dark);
 
-  --ui-input-bg:#FFFFFF;
-  --ui-input-border:#E7B9A3;
+  --ui-input-bg:rgba(255,255,255,0.14); /* input beyaz değil, cam gibi */
+  --ui-input-border:rgba(250,194,164,0.42);
   --ui-input-text:#3A1F1F;
 
-  --danger:#9B2C2C;
-  --danger-bg:rgba(155,44,44,0.12);
-  --danger-border:rgba(155,44,44,0.25);
+  --card-bg:rgba(255,255,255,0.10);     /* CAM CARD */
+  --card-border:rgba(255,255,255,0.18);
+
+  --danger:#7F1D1D;
+  --danger-bg:rgba(127,29,29,0.18);
+  --danger-border:rgba(127,29,29,0.28);
 }
 `;
+
 
 // Helper styles (no Tailwind color palette usage)
 const S = {
   pageBg: {
     background: "radial-gradient(circle, var(--bg-primary) 0%, var(--bg-secondary) 70%)",
   },
-  card: {
-    background: "white",
-  },
+card: {
+  background: "var(--card-bg)",
+  border: "1px solid var(--card-border)",
+  backdropFilter: "blur(10px)",
+  WebkitBackdropFilter: "blur(10px)",
+},
   textPrimary: { color: "var(--text-primary)" },
   textSecondary: { color: "var(--text-secondary)" },
   textMuted: { color: "var(--text-muted)" },
@@ -72,11 +79,11 @@ const S = {
     background: "var(--ui-btn-hover)",
     color: "var(--ui-btn-text)",
   },
-  input: {
-    background: "var(--ui-input-bg)",
-    borderColor: "var(--ui-input-border)",
-    color: "var(--ui-input-text)",
-  },
+input: {
+  background: "var(--ui-input-bg)",
+  borderColor: "var(--ui-input-border)",
+  color: "var(--ui-input-text)",
+},
 };
 
 /* =========================================================
@@ -869,19 +876,19 @@ export default function SesliOyuncakSiparis() {
         </div>
       )}
 
-      {/* PAGE */}
-      <div
+<div
   className="min-h-screen py-10 px-4"
   style={{
     backgroundImage: "url('/memora-bg.png')",
     backgroundSize: "cover",
     backgroundPosition: "center",
     backgroundRepeat: "no-repeat",
+    backgroundAttachment: "fixed",
   }}
 >
         <div className="max-w-2xl mx-auto">
           {/* HEADER */}
-          <div className="rounded-3xl shadow-xl p-8 mb-8 text-center" style={S.card}>
+         <div className="rounded-3xl shadow-xl p-8 mb-8 text-center border" style={S.card}>
             <div
               className="w-32 h-32 mx-auto mb-4 rounded-2xl shadow-inner border overflow-hidden flex items-center justify-center"
               style={{
@@ -900,14 +907,14 @@ export default function SesliOyuncakSiparis() {
               />
             </div>
 
-            <h1 className="text-3xl font-bold mb-2" style={S.titleOnWhite}>
+          <h1 className="text-3xl font-bold mb-2" style={{ color: "var(--text-primary)" }}>
               Memory Drop Studio Ön Sipariş Ekranı
             </h1>
-            <p style={{ color: "rgba(58,31,31,0.75)" }}>Sevdikleriniz için özel, sesli bir oyuncak oluşturun!</p>
+            <p style={{ color: "var(--text-secondary)" }}>Sevdikleriniz için özel, sesli bir oyuncak oluşturun!</p>
           </div>
 
           {/* FORM */}
-          <div className="rounded-3xl shadow-xl p-8" style={S.card}>
+          <div className="rounded-3xl shadow-xl p-8 border" style={S.card}>
             {/* İLETİŞİM */}
             <div className="mb-8">
               <h2 className="text-xl font-semibold mb-4 flex items-center" style={S.titleOnWhite}>
@@ -1115,11 +1122,11 @@ borderColor: "rgba(246,188,170,0.22)",
               disabled={submitDisabled || isSubmitting}
               onClick={handleSubmit}
               className="w-full py-4 rounded-xl font-semibold text-lg transition shadow-lg"
-              style={
-                submitDisabled || isSubmitting
-                  ? { background: "rgba(0,0,0,0.12)", color: "rgba(0,0,0,0.45)", cursor: "not-allowed" }
-                  : S.btnPrimary
-              }
+style={
+  submitDisabled || isSubmitting
+    ? { background: "rgba(0,0,0,0.12)", color: "rgba(255,255,255,0.65)", cursor: "not-allowed" }
+    : { background: "var(--ui-btn-bg)", color: "var(--ui-btn-text)" }
+}
               onMouseEnter={(e) => {
                 if (submitDisabled || isSubmitting) return;
                 e.currentTarget.style.background = "var(--ui-btn-hover)";
@@ -2225,9 +2232,9 @@ function DosyaTrimmer({ dosya, onRemove, onUpdate }) {
                 ⏳ Dosya hazırlanıyor...
               </span>
             ) : (
-              <span className="text-xs" style={{ color: "rgba(58,31,31,0.65)" }}>
-                ✓ Hazır - Toplam: {formatTime(dosya.duration)}
-              </span>
+<span className="text-xs" style={{ color: "var(--wave-primary)" }}>
+  ✓ Hazır - Toplam: {formatTime(dosya.duration)}
+</span>
             )}
             <div className="text-[11px] mt-1" style={{ color: "rgba(58,31,31,0.55)" }}>
               İpucu: Hassas ayar için <b>SHIFT</b> + <b>mouse tekerleğini</b> kullanınız
