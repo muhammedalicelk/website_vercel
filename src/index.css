@@ -1,25 +1,27 @@
-/* ===== HAZIR RANGE – AMBER ===== */
+/* ===== HAZIR RANGE – MEMORA ===== */
 .hazirRange{
   -webkit-appearance:none;
   appearance:none;
   width:100%;
   background:transparent;
-  accent-color:#b45309;
+
+  /* modern tarayıcılar için */
+  accent-color: var(--brand-green);
 }
 
 /* TRACK */
 .hazirRange::-webkit-slider-runnable-track{
   height:6px;
-  background:#e7e5e4; /* stone-200 */
+  background: rgba(58,31,31,0.12); /* soft track */
   border-radius:999px;
 }
 .hazirRange::-moz-range-track{
   height:6px;
-  background:#e7e5e4;
+  background: rgba(58,31,31,0.12);
   border-radius:999px;
 }
 
-/* THUMB */
+/* THUMB (yeşil, logodaki wave gibi) */
 .hazirRange::-webkit-slider-thumb{
   -webkit-appearance:none;
   appearance:none;
@@ -27,15 +29,17 @@
   width:18px;
   height:18px;
   border-radius:9999px;
-  background:#b45309;     /* amber-700 */
-  border:2px solid #92400e; /* amber-800 */
+  background: var(--brand-green);        /* ✅ YEŞİL */
+  border: 2px solid rgba(82,95,50,0.85); /* koyu yeşil çerçeve */
   cursor:pointer;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.18);
 }
 .hazirRange::-moz-range-thumb{
   width:18px;
   height:18px;
   border-radius:9999px;
-  background:#b45309;
-  border:2px solid #92400e;
+  background: var(--brand-green);        /* ✅ YEŞİL */
+  border: 2px solid rgba(82,95,50,0.85);
   cursor:pointer;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.18);
 }
