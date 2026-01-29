@@ -941,8 +941,8 @@ export default function SesliOyuncakSiparis() {
               <div
                 className="rounded-xl p-4 mb-4 flex items-start gap-3 border"
                 style={{
-              background: "rgba(246,188,170,0.14)"  // --accent’in transparanı
-              borderColor: "rgba(246,188,170,0.22)"
+background: "rgba(246,188,170,0.14)",  // --accent’in transparanı
+borderColor: "rgba(246,188,170,0.22)",
                 }}
               >
                 <AlertCircle className="w-5 h-5 flex-shrink-0 mt-0.5" style={{ color: "var(--accent-dark)" }} />
